@@ -82,16 +82,35 @@ jobs:
 
       - name: Configure (iOS Simulator)
         working-directory: OEP/engine
-        run: ./build-ios.sh configure
+        shell: bash
+        run: set -o pipefail; ./build-ios.sh configure 2>&1 | tee -a "$GITHUB_WORKSPACE/ci-ios.log"
 
       - name: Build (iOS Simulator)
         working-directory: OEP/engine
-        run: ./build-ios.sh build
+        shell: bash
+        run: set -o pipefail; ./build-ios.sh build 2>&1 | tee -a "$GITHUB_WORKSPACE/ci-ios.log"
 
-      - name: Collect build log on failure
+      - name: Report build errors
         if: failure()
+        shell: bash
         run: |
-          find OEP/engine/.work -name "*.log" -o -name "*.xcactivitylog" | head -20 || true
+          f="$GITHUB_WORKSPACE/ci-ios.log"
+          if [ ! -f "$f" ]; then echo "::error::no build log was produced"; exit 0; fi
+          hits=$(grep -nE "CMake Error|CMake Warning at|error:|fatal error|Error [0-9]+|FAILED:|ninja: build stopped|The following" "$f" | head -60)
+          if [ -n "$hits" ]; then
+            printf '%s
+' "$hits" | while IFS= read -r line; do echo "::error::$line"; done
+          else
+            tail -40 "$f" | while IFS= read -r line; do echo "::error::$line"; done
+          fi
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-log
+          path: ${{ github.workspace }}/ci-ios.log
+          if-no-files-found: ignore
 
       - name: Build unsigned device IPA
         if: github.event_name != 'pull_request'
