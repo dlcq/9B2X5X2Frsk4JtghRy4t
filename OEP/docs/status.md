@@ -109,7 +109,8 @@ CI で確認できたこと（GitHub Actions、公開リポジトリ）:
 | `checks.yml` / ObjC++ host syntax | ✅ 成功（iOS SDK + SDL3 ヘッダで `-fsyntax-only`） |
 | `ios.yml` / Configure (iOS Simulator) | ✅ 成功（vcpkg 依存・SDL3・krkrz・プラグインを構成） |
 | `ios.yml` / Build (iOS Simulator) | ✅ 成功（エンジン + SwiftUI ホストをリンクし `krkrz.app` を生成） |
-| `ios.yml` / 未署名 IPA | 🟡 生成中/未確認 |
+| `ios.yml` / Build unsigned device IPA | ✅ 成功（arm64 実機向け Release、署名なし） |
+| `ios.yml` / 成果物 | ✅ `OEP-unsigned-ipa`(6.5MB) / `OEP-simulator-app`(12.5MB) / `ios-build-log` |
 
 | 項目 | 状態 |
 |---|---|
@@ -118,15 +119,16 @@ CI で確認できたこと（GitHub Actions、公開リポジトリ）:
 | パッチの適用可能性 | ✅ クリーンな clone に対して `git apply --check` で確認（下記） |
 | GitHub Actions ワークフロー | 🟡 作成済み・**未実行**（リモート/認証が無い） |
 | 署名つき IPA | ❌ 未生成（証明書・macOS が必要） |
-| 未署名 IPA | 🟡 ワークフローで生成する定義のみ。実行は未実施 |
+| 未署名 IPA | ✅ GitHub Actions で生成・artifact に保存（再署名してインストールする必要あり） |
+| Simulator での起動 | 🟡 未実施（CI はビルドのみ。起動確認には macOS/Simulator が必要） |
 
 ## 7. 検証できなかったこと（明示）
 
 1. **iOS アプリのコンパイル**（Swift/SwiftUI/ObjC++、Xcode プロジェクト生成）
-2. **エンジンの iOS ビルド**（vcpkg 依存、krkrz_dev のサブモジュール、プラグイン構成）
-3. **実機/Simulator での起動・描画・入力・音声**
+2. ~~エンジンの iOS ビルド~~ → **CI で成功**（Simulator / 実機 arm64 とも）
+3. **実機/Simulator での起動・描画・入力・音声**（ビルドは成功、実行は未検証）
 4. **本物のタイトル（NEKOPARA / 魔女的夜宴）の起動**。行ったのはメタデータ解析のみ
-5. **IPA の生成とインストール**
+5. **IPA のインストール**（生成は CI で成功。署名がないため実機にはそのまま入らない）
 6. **GitHub Actions の実行**
 
 これらは macOS と（CI を回すなら）GitHub リポジトリへの push があれば検証できる。

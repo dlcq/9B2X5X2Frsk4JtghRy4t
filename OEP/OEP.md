@@ -76,10 +76,10 @@ cd OEP/engine
 | OEP core（XP3 / 検出 / スキャン / ログ） | ✅ Windows でビルド・77 テスト成功・実データ解析成功 |
 | パッチの適用 | ✅ 上流の pinned コミットへ `git apply` 成功 |
 | iOS アプリのコンパイル（Simulator） | ✅ GitHub Actions の macOS で成功（エンジン込み） |
-| エンジンの iOS ビルド（デバイス） | 🟡 未署名 IPA のビルドで確認中 |
+| エンジンの iOS ビルド（実機 arm64） | ✅ CI で成功（未署名 IPA 6.5MB を artifact に保存） |
 | 実機 / Simulator での起動動作 | 🟡 未検証（この環境では実行できない） |
 | 実タイトルの起動 | 🟡 未検証（メタデータ解析のみ） |
-| IPA | 🟡 未署名 IPA を CI で生成中 |
+| IPA | ✅ 未署名 IPA を CI で生成（インストールには再署名が必要） |
 
 **未検証のものを「動く」と報告しない。** 詳細と理由は [docs/status.md](docs/status.md)。
 

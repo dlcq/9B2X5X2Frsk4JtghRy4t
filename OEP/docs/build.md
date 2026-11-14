@@ -175,6 +175,8 @@ memfile shrinkCopy virtualpad iosconfig
 | `ios` | macOS ランナーで vcpkg を準備 → `build-ios.sh deps/configure/build` → Simulator 用 `.app` を成果物に。PR 以外では **未署名 IPA** も生成 |
 
 - vcpkg のバイナリキャッシュを `actions/cache` で保持する（初回は 20〜40 分程度かかる）。
+- 成功時の成果物: `OEP-unsigned-ipa`（`Payload/krkrz.app` を zip した未署名 IPA）、
+  `OEP-simulator-app`（Simulator 用 `.app`）、`ios-build-log`。
 - 署名つき IPA を作る場合は、リポジトリの Secrets に証明書とプロファイルを置き、
   `xcodebuild -exportArchive` に渡す手順を追加する（`build-ios.sh ipa` がその入口）。
 
