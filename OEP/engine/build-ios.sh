@@ -122,6 +122,9 @@ generate_config() {
     require_macos
     [ -d "$KRKRZ_IOS" ] || die "run '$0 deps' first"
     [ -n "${VCPKG_ROOT:-}" ] || die "VCPKG_ROOT is not set (see docs/build.md)"
+    log "generating the test game audio (bundled with the app)"
+    python3 "$OEP_DIR/testdata/build-testdata.py" >/dev/null ||         log "warning: test data generation failed (the app will still build)"
+
     log "generating app config"
     (
         cd "$KRKRZ_IOS"

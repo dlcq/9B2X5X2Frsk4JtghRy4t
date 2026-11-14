@@ -14,6 +14,9 @@ final class AppEnvironment: ObservableObject {
         OEPHostLogSetMinimumLevel(Int32(settings.settings.logLevel))
         // Make the Files-visible inbox exist from the first launch.
         _ = DocumentsInbox.url
+        // A fresh install gets the self-made test game so the engine can be
+        // verified without importing anything.
+        BundledContent.seedIfNeeded(library: library)
     }
 
     func applySettings() {

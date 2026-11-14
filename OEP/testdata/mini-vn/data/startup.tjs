@@ -28,14 +28,18 @@ class OepTestWindow extends Window
 		background.setSize(960, 540);
 		add(background);
 
-		hud = new Layer(this, null);
+		// A Window has exactly one primary layer (parent == null).  Everything
+		// else must be a child, otherwise the engine's layer-manager bookkeeping
+		// fails with an internal error.
+		hud = new Layer(this, background);
 		hud.setSize(960, 540);
+		hud.type = ltAlpha;      // transparent child layer (cleared every frame)
 		hud.font.height = 20;
 		add(hud);
 
 		se = new WaveSoundBuffer(this);
 		try {
-			se.open("se.ogg");
+			se.open("se.wav");
 		} catch (e) {
 			se = void;
 		}

@@ -200,8 +200,9 @@ export DEVELOPMENT_TEAM=XXXXXXXXXX
    - iOS のフォルダピッカーは**フォルダの中に入ってから右上「開く」**で確定する
    - ゲームフォルダ自体でも、親フォルダでもよい（エンジンデータを持つサブフォルダを自動で探す）
 
-`OEP/testdata/mini-vn`（`python3 OEP/testdata/build-testdata.py` で `data.xp3` を生成）を
-最初の動作確認に使うと、実タイトルより切り分けが速い。
+`OEP/testdata/mini-vn` は**アプリに同梱**され、初回起動時にライブラリへ自動登録される
+（`assetPack` → `BundledContent`）。効果音 `data/se.wav` はビルド時に Python で生成する。
+`--pack` を付けると `data.xp3` も作れる（同梱版は `data/` を直接使う）。
 
 ## 4. 署名と IPA（無料でできること / できないこと）
 

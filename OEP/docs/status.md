@@ -179,6 +179,27 @@ CI で確認できたこと（GitHub Actions、公開リポジトリ）:
 
 この修正は CI（`26dd60d` 以降）でビルド確認。実機確認は次回インストール後。
 
+## 7.9 3回目の実機クラッシュ（原因判明・修正済み）
+
+アーカイブのマウントは成功し `startup.tjs` が実行されたが、次の例外で停止した。
+
+```
+An exception occured at startup.tjs(31): hud = new Layer(this, null);
+Internal Error: common/visual/DrawDevice.cpp line 240   (RemoveLayerManager)
+```
+
+`Layer(this, null)` はそのウィンドウの**プライマリレイヤ**を作る。1つの Window に
+プライマリは1つだけなので、2つ目でレイヤマネージャの登録簿が壊れていた。
+**テストデータ側の誤り**で、HUD を背景レイヤの子に修正（`new Layer(this, background)`）。
+併せて、エンジン初期化前にランチャーウィンドウを隠すようにした（SDL のウィンドウが
+key/visible になれず GLES 3.2 コンテキスト生成が失敗し 3.0 にフォールバックしていたため）。
+
+### テストデータの同梱
+
+`OEP/testdata/mini-vn` をアプリバンドルに含め（`ios-config.json` の `assetPack`）、
+初回起動時にライブラリへ自動登録する（`BundledContent.swift`）。
+効果音は ffmpeg 不要の WAV 生成（Python 標準ライブラリ）に変更した。
+
 ## 8. 意図的に実装しなかったもの
 
 | 項目 | 理由 |

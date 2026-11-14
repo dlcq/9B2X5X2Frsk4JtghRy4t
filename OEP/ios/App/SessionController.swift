@@ -96,6 +96,10 @@ final class SessionController: ObservableObject {
     }
 
     private func startEngine(game: GameEntry, folder: URL) {
+        // The engine creates its own UIWindow and needs to be able to make it key
+        // (and visible) while it creates the GLES context; our launcher window sits
+        // above it otherwise.  If init fails, onSessionEnded brings it back.
+        LauncherHost.shared.hideLauncher()
         let rc = folder.path.withCString { pointer in
             OEPHostEngineStart(pointer)
         }

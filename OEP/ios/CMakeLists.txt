@@ -16,6 +16,7 @@ set(OEP_CORE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../core")
 set(OEP_SWIFT_SOURCES
     App/Model.swift
     App/Bridge.swift
+    App/BundledContent.swift
     App/LibraryStore.swift
     App/ImportService.swift
     App/SessionController.swift

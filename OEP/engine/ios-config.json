@@ -40,8 +40,18 @@
     "_comment": "Plug-in set for the iOS build. If a plug-in fails to compile for iOS, remove it here: the engine still builds and the title's support level reflects the missing plug-in."
   },
   "assetPack": {
-    "baseFolder": "${BUILD_SYSTEM_DIR}",
-    "sources": []
+    "baseFolder": "${PROJECT_DIR}",
+    "sources": [
+      {
+        "comment": "Self-made all-ages test game, preloaded so a fresh install has something to run.",
+        "type": "mirror",
+        "from": "../testdata/mini-vn",
+        "to": "testdata/mini-vn",
+        "include": [
+          "**/*"
+        ]
+      }
+    ]
   },
   "infoPlist": {
     "UIFileSharingEnabled": true,

@@ -14,6 +14,7 @@ OEP/engine/local.mk
 
 # Generated test data (recreate with OEP/testdata/build-testdata.py)
 OEP/testdata/mini-vn/data.xp3
+OEP/testdata/mini-vn/data/se.wav
 OEP/testdata/mini-vn/data/se.ogg
 
 # Editor / OS noise
