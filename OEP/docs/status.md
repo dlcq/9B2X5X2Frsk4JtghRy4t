@@ -111,6 +111,7 @@ CI で確認できたこと（GitHub Actions、公開リポジトリ）:
 | `ios.yml` / Build (iOS Simulator) | ✅ 成功（エンジン + SwiftUI ホストをリンクし `krkrz.app` を生成） |
 | `ios.yml` / Build unsigned device IPA | ✅ 成功（arm64 実機向け Release、署名なし） |
 | `ios.yml` / 成果物 | ✅ `OEP-unsigned-ipa`(6.5MB) / `OEP-simulator-app`(12.5MB) / `ios-build-log` |
+| `ios.yml`（取り込み修正後 7c5841d） | ✅ Simulator / 実機 IPA とも成功 |
 
 | 項目 | 状態 |
 |---|---|
@@ -144,6 +145,16 @@ CI で確認できたこと（GitHub Actions、公開リポジトリ）:
 | `memfile` の `(tTJSVariant)NULL` が 64bit 非 Windows で曖昧 | パッチ 0003 で `tTJSVariant()` に |
 | elements の accesskit 実装が macOS 専用（`accesskit_macos_*`） | `ios-config.json` の `"a11y": false`（krkrz 自身も iOS では既定 OFF） |
 | 自前パッチ 0001 が関数内で `extern "C"` 宣言していた | ファイルスコープへ移動 |
+
+## 7.6 実機テストで見つかった問題（修正済み）
+
+| 症状 | 原因 | 対応 |
+|---|---|---|
+| フォルダピッカーで「開く」が押せない / 押しても無反応 | (1) iOS のフォルダピッカーは**フォルダ内に入ってから**「開く」で確定する仕様、(2) シート内の `fileImporter` が無効化されることがある | `UIDocumentPickerViewController` を最前面の VC から直接表示。加えて**アプリの Documents フォルダ経由**（Files アプリ > このiPhone内 > OEP）の取り込みを追加。親フォルダを選ばれてもエンジンデータのあるサブフォルダを自動解決 |
+| Documents 経由の取り込みで容量が二重になる | コピー実装のみだった | Documents 由来は**移動**（同一ボリュームのリネーム）に変更 |
+
+この修正は CI（7c5841d）で Simulator / 実機 IPA のビルド成功まで確認済み。
+**実機での動作確認はユーザー側での再インストール後に未実施。**
 
 ## 8. 意図的に実装しなかったもの
 
