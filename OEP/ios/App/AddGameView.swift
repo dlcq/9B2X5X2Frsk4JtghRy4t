@@ -1,4 +1,10 @@
-// OEP - add game flow: pick -> scan -> review -> copy -> registered.
+// OEP - add game flow: pick -> scan -> review -> copy/move -> registered.
+//
+// Two routes are offered because iOS's folder picker only enables "Open" while
+// you are inside a folder:
+//   * the app's Documents folder (Files app > On My iPhone > OEP), which is the
+//     most reliable route, and the folder is moved (not copied) into the library;
+//   * the system document picker, for anything else the user can reach.
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -8,13 +14,10 @@ struct AddGameView: View {
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var importer: ImportService
 
-    @State private var showPicker = false
-    @State private var titleDraft = ""
     @State private var didRequestPicker = false
-
-    private var xp3Type: UTType {
-        UTType(filenameExtension: "xp3") ?? .data
-    }
+    @State private var titleDraft = ""
+    @State private var inboxEntries: [DocumentsInbox.Entry] = []
+    @State private var pickerError: String?
 
     var body: some View {
         ZStack {
@@ -25,7 +28,7 @@ struct AddGameView: View {
                     VStack(alignment: .leading, spacing: 18) {
                         switch importer.stage {
                         case .idle, .failed:
-                            pickSection
+                            sourcesSection
                         case .scanning:
                             scanningSection
                         case .review:
@@ -38,6 +41,9 @@ struct AddGameView: View {
                         if let message = importer.errorMessage, importer.stage != .done {
                             errorCard(message)
                         }
+                        if let pickerError {
+                            errorCard(pickerError)
+                        }
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 12)
@@ -48,16 +54,7 @@ struct AddGameView: View {
         }
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
-        .fileImporter(isPresented: $showPicker,
-                      allowedContentTypes: [.folder, xp3Type],
-                      allowsMultipleSelection: false) { result in
-            handlePicked(result)
-        }
-        .onAppear {
-            guard !didRequestPicker else { return }
-            didRequestPicker = true
-            showPicker = true
-        }
+        .task { reloadInbox() }
     }
 
     // MARK: - Header
@@ -91,45 +88,136 @@ struct AddGameView: View {
         .padding(.bottom, 10)
     }
 
-    // MARK: - Stages
+    // MARK: - Source selection
 
-    private var pickSection: some View {
-        OEPCard {
-            VStack(alignment: .leading, spacing: 14) {
-                Text("フォルダを選択")
-                    .font(OEPFont.title(17))
-                    .foregroundStyle(palette.text)
-                Text("ファイルアプリから、data.xp3 を含むゲームフォルダ（または data/startup.tjs）を選択してください。単体の .xp3 を選んだ場合はフォルダに包んでから取り込みます。")
-                    .font(OEPFont.body(13))
-                    .foregroundStyle(palette.subtext)
-                    .fixedSize(horizontal: false, vertical: true)
-                Button {
-                    importer.reset()
-                    showPicker = true
-                } label: {
+    private var sourcesSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            OEPCard {
+                VStack(alignment: .leading, spacing: 12) {
                     HStack(spacing: 8) {
-                        Image(systemName: "folder")
-                        Text("フォルダを選ぶ")
+                        Image(systemName: "internaldrive")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(palette.purple)
+                        Text("このアプリのフォルダから選ぶ（推奨）")
+                            .font(OEPFont.title(15))
+                            .foregroundStyle(palette.text)
+                    }
+                    Text("ファイルアプリで「このiPhone内 > OEP」にゲームフォルダをコピーしてください。フォルダごとコピーできます。ここに表示されたフォルダは、追加時にアプリの管理領域へ移動します（二重に容量を使いません）。")
+                        .font(OEPFont.body(12))
+                        .foregroundStyle(palette.subtext)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    if inboxEntries.isEmpty {
+                        HStack(spacing: 8) {
+                            Image(systemName: "tray")
+                                .foregroundStyle(palette.subtext)
+                            Text("まだ何もありません")
+                                .font(OEPFont.body(12))
+                                .foregroundStyle(palette.subtext)
+                            Spacer()
+                            Button("再読み込み") { reloadInbox() }
+                                .font(OEPFont.label(11))
+                                .buttonStyle(.plain)
+                                .foregroundStyle(palette.blue)
+                        }
+                        .padding(.vertical, 4)
+                    } else {
+                        VStack(spacing: 2) {
+                            ForEach(inboxEntries) { entry in
+                                HStack(spacing: 10) {
+                                    Image(systemName: entry.isDirectory ? "folder" : "shippingbox")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundStyle(entry.looksLikeGame ? palette.blue : palette.subtext)
+                                        .frame(width: 18)
+                                    VStack(alignment: .leading, spacing: 1) {
+                                        Text(entry.name)
+                                            .font(OEPFont.body(13))
+                                            .foregroundStyle(palette.text)
+                                            .lineLimit(1)
+                                        Text(entry.isDirectory
+                                             ? (entry.looksLikeGame ? "ゲームフォルダ" : "フォルダ")
+                                             : "XP3 アーカイブ")
+                                            .font(OEPFont.body(10))
+                                            .foregroundStyle(palette.subtext)
+                                    }
+                                    Spacer(minLength: 6)
+                                    Button("取り込む") {
+                                        pickerError = nil
+                                        Task {
+                                            await importer.prepare(url: entry.url,
+                                                                   library: library,
+                                                                   origin: .documents)
+                                            titleDraft = importer.candidate?.title ?? ""
+                                        }
+                                    }
+                                    .font(OEPFont.label(11))
+                                    .buttonStyle(.plain)
+                                    .foregroundStyle(palette.blue)
+                                }
+                                .padding(.vertical, 7)
+                                if entry.id != inboxEntries.last?.id {
+                                    Divider().overlay(palette.border.opacity(0.4))
+                                }
+                            }
+                        }
+                        Button("再読み込み") { reloadInbox() }
+                            .font(OEPFont.label(10))
+                            .buttonStyle(.plain)
+                            .foregroundStyle(palette.subtext)
                     }
                 }
-                .buttonStyle(OEPSecondaryButtonStyle())
+            }
 
-                VStack(alignment: .leading, spacing: 6) {
-                    bullet("元のフォルダは変更しません（読み取りのみ）")
-                    bullet("アプリ内の管理領域へコピーしてから登録します")
+            OEPCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "folder.badge.plus")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(palette.blue)
+                        Text("ファイルアプリから選ぶ")
+                            .font(OEPFont.title(15))
+                            .foregroundStyle(palette.text)
+                    }
+                    Text("iOS のフォルダ選択は「フォルダの中に入ってから右上の『開く』」で確定します。『開く』が押せないときは、フォルダを開いてから押してください。ゲームの入ったフォルダ自体、またはその親フォルダのどちらでも選べます。")
+                        .font(OEPFont.body(12))
+                        .foregroundStyle(palette.subtext)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Button {
+                        pickerError = nil
+                        SystemPicker.present(mode: .archive) { result in
+                            handlePicked(result)
+                        }
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "folder")
+                            Text("フォルダ / .xp3 を選ぶ")
+                        }
+                    }
+                    .buttonStyle(OEPSecondaryButtonStyle())
+                }
+            }
+
+            OEPCard {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("取り込みについて")
+                        .font(OEPFont.label(10))
+                        .tracking(1.2)
+                        .foregroundStyle(palette.subtext)
+                    bullet("元のフォルダは変更しません（Documents からの追加時は移動します）")
                     bullet("アーカイブのインデックスだけを解析し、内容は読みません")
+                    bullet("同じ内容のゲームは重複として登録を止めます")
                 }
             }
         }
     }
 
+    // MARK: - Stages
+
     private var scanningSection: some View {
         OEPCard {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(spacing: 12) {
-                    ProgressView()
-                        .progressViewStyle(.circular)
-                        .tint(palette.purple)
+                    ProgressView().tint(palette.purple)
                     Text(importer.statusText.isEmpty ? "解析しています…" : importer.statusText)
                         .font(OEPFont.body(14))
                         .foregroundStyle(palette.text)
@@ -184,6 +272,7 @@ struct AddGameView: View {
                         InfoRow(key: "サイズ", value: Fmt.bytes(candidate.totalBytes))
                         InfoRow(key: "ファイル数", value: "\(candidate.fileCount)")
                         InfoRow(key: "起動スクリプト", value: candidate.report.hasStartupScript ? "あり" : "なし")
+                        InfoRow(key: "取り込み方法", value: candidate.shouldMove ? "移動" : "コピー")
                     }
 
                     if !candidate.report.issues.isEmpty {
@@ -197,17 +286,17 @@ struct AddGameView: View {
 
                     Divider().overlay(palette.border.opacity(0.6))
 
-                    Text("≒ \(Fmt.bytes(candidate.totalBytes)) をアプリ内にコピーします。空き容量に注意してください。")
+                    Text(candidate.shouldMove
+                         ? "≒ \(Fmt.bytes(candidate.totalBytes)) をアプリの管理領域へ移動します。"
+                         : "≒ \(Fmt.bytes(candidate.totalBytes)) をアプリ内にコピーします。空き容量に注意してください。")
                         .font(OEPFont.body(12))
                         .foregroundStyle(palette.subtext)
 
                     Button {
-                        Task {
-                            await importer.commit(library: library)
-                        }
+                        Task { await importer.commit(library: library) }
                     } label: {
                         HStack(spacing: 8) {
-                            Image(systemName: "tray.and.arrow.down.fill")
+                            Image(systemName: candidate.shouldMove ? "arrow.right.circle.fill" : "tray.and.arrow.down.fill")
                             Text("ライブラリに追加")
                         }
                     }
@@ -216,7 +305,7 @@ struct AddGameView: View {
 
                     Button("選び直す") {
                         importer.reset()
-                        showPicker = true
+                        reloadInbox()
                     }
                     .buttonStyle(OEPSecondaryButtonStyle())
                 }
@@ -227,7 +316,7 @@ struct AddGameView: View {
     private var copyingSection: some View {
         OEPCard {
             VStack(alignment: .leading, spacing: 16) {
-                Text("コピー中")
+                Text(importer.statusText.hasPrefix("ゲームデータを移動") ? "移動中" : "コピー中")
                     .font(OEPFont.title(17))
                     .foregroundStyle(palette.text)
                 ProgressView(value: importer.progress)
@@ -239,10 +328,8 @@ struct AddGameView: View {
                 Text("\(Int(importer.progress * 100))%")
                     .font(OEPFont.mono(22, weight: .semibold))
                     .foregroundStyle(palette.text)
-                Button("キャンセル") {
-                    importer.cancel()
-                }
-                .buttonStyle(OEPSecondaryButtonStyle())
+                Button("キャンセル") { importer.cancel() }
+                    .buttonStyle(OEPSecondaryButtonStyle())
             }
         }
     }
@@ -268,12 +355,14 @@ struct AddGameView: View {
                 .buttonStyle(OEPPrimaryButtonStyle())
                 Button("続けて追加") {
                     importer.reset()
-                    showPicker = true
+                    reloadInbox()
                 }
                 .buttonStyle(OEPSecondaryButtonStyle())
             }
         }
     }
+
+    // MARK: - Helpers
 
     private func errorCard(_ message: String) -> some View {
         HStack(alignment: .top, spacing: 10) {
@@ -307,21 +396,26 @@ struct AddGameView: View {
         }
     }
 
-    // MARK: - Picker
+    private func reloadInbox() {
+        inboxEntries = DocumentsInbox.entries()
+    }
 
     private func handlePicked(_ result: Result<[URL], Error>) {
         switch result {
         case .success(let urls):
             guard let url = urls.first else { return }
             Task {
-                await importer.prepare(url: url, library: library)
-                if let candidate = importer.candidate {
-                    titleDraft = candidate.title
-                }
+                await importer.prepare(url: url, library: library, origin: .picker)
+                titleDraft = importer.candidate?.title ?? ""
             }
         case .failure(let error):
-            // A cancelled picker is not an error worth logging loudly.
-            OEPCore.log(1, "import", "picker closed: \(error.localizedDescription)")
+            let nsError = error as NSError
+            if nsError.domain == NSCocoaErrorDomain && nsError.code == NSUserCancelledError {
+                OEPCore.log(1, "import", "picker cancelled")
+            } else {
+                pickerError = error.localizedDescription
+                OEPCore.log(2, "import", "picker failed: \(error.localizedDescription)")
+            }
         }
     }
 }

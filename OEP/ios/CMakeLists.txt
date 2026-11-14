@@ -26,6 +26,7 @@ set(OEP_SWIFT_SOURCES
     App/LibraryView.swift
     App/GameDetailView.swift
     App/AddGameView.swift
+    App/DocumentPicker.swift
     App/SettingsView.swift
     App/DiagnosticsView.swift
     App/SecondaryViews.swift

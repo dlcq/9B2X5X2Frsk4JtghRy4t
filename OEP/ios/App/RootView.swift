@@ -12,6 +12,8 @@ final class AppEnvironment: ObservableObject {
         SessionBridge.shared.session = session
         session.bind(library: library)
         OEPHostLogSetMinimumLevel(Int32(settings.settings.logLevel))
+        // Make the Files-visible inbox exist from the first launch.
+        _ = DocumentsInbox.url
     }
 
     func applySettings() {

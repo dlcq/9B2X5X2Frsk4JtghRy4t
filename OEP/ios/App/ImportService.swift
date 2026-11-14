@@ -12,6 +12,7 @@ enum ImportError: LocalizedError {
     case copyFailed(String)
     case cancelled
     case duplicate(String)
+    case multipleGames(String)
     case scanFailed
 
     var errorDescription: String? {
@@ -28,6 +29,8 @@ enum ImportError: LocalizedError {
             return "インポートをキャンセルしました。"
         case .duplicate(let title):
             return "同じ内容のゲームが既に登録されています（\(title)）。"
+        case .multipleGames(let names):
+            return "複数のゲームが見つかりました（\(names)）。ゲームのフォルダ自体を選んでください。"
         case .scanFailed:
             return "ゲームの解析に失敗しました。"
         }
@@ -35,6 +38,14 @@ enum ImportError: LocalizedError {
 }
 
 final class ImportService: ObservableObject {
+    /// Where the folder came from.  The app's own Documents folder is already
+    /// ours, so it can be *moved* into the library instead of copied (instant,
+    /// no double disk usage); picker URLs are copied.
+    enum Origin {
+        case picker
+        case documents
+    }
+
     struct Candidate: Identifiable {
         var id = UUID()
         var sourceURL: URL
@@ -47,6 +58,7 @@ final class ImportService: ObservableObject {
         var signature: String
         var totalBytes: Int64
         var fileCount: Int
+        var shouldMove = false
     }
 
     enum Stage: Equatable {
@@ -88,12 +100,14 @@ final class ImportService: ObservableObject {
     // MARK: - Step 1: pick and scan
 
     @MainActor
-    func prepare(url: URL, library: LibraryStore) async {
+    func prepare(url: URL, library: LibraryStore, origin: Origin = .picker) async {
         reset()
         stage = .scanning
         statusText = "フォルダを確認しています…"
 
-        let accessed = url.startAccessingSecurityScopedResource()
+        // Documents belongs to the app, everything else arrives through a
+        // security-scoped URL from the document picker.
+        let accessed = origin == .picker ? url.startAccessingSecurityScopedResource() : false
         defer { if accessed { url.stopAccessingSecurityScopedResource() } }
 
         do {
@@ -103,7 +117,7 @@ final class ImportService: ObservableObject {
             var staging: URL?
 
             if isDirectory {
-                scanTarget = url
+                scanTarget = try resolveProjectFolder(url)
             } else {
                 // A single archive: wrap it so the engine sees a project folder.
                 let dir = FileManager.default.temporaryDirectory
@@ -140,7 +154,8 @@ final class ImportService: ObservableObject {
                                   report: report,
                                   signature: signature,
                                   totalBytes: metrics.bytes,
-                                  fileCount: metrics.files)
+                                  fileCount: metrics.files,
+                                  shouldMove: origin == .documents)
 
             if let existing = library.duplicate(of: signature) {
                 errorMessage = ImportError.duplicate(existing.title).localizedDescription
@@ -177,13 +192,35 @@ final class ImportService: ObservableObject {
         defer { if accessed { source.stopAccessingSecurityScopedResource() } }
 
         do {
-            try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
-            let total = max(candidate.totalBytes, 1)
-            let cancelled = await copyTree(from: source, to: destination, totalBytes: total)
+            if candidate.shouldMove {
+                // Same volume: an instantaneous rename, and it frees the inbox
+                // copy instead of doubling the game size on the device.
+                statusText = "ゲームデータを移動しています…"
+                if FileManager.default.fileExists(atPath: destination.path) {
+                    try? FileManager.default.removeItem(at: destination)
+                }
+                do {
+                    try FileManager.default.moveItem(at: source, to: destination)
+                    progress = 1
+                } catch {
+                    OEPCore.log(3, "import", "move failed, falling back to copy: \(error.localizedDescription)")
+                    try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+                    let total = max(candidate.totalBytes, 1)
+                    let cancelled = await copyTree(from: source, to: destination, totalBytes: total)
+                    if cancelled || cancelFlag.isSet {
+                        try? FileManager.default.removeItem(at: destination)
+                        throw ImportError.cancelled
+                    }
+                }
+            } else {
+                try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+                let total = max(candidate.totalBytes, 1)
+                let cancelled = await copyTree(from: source, to: destination, totalBytes: total)
 
-            if cancelled || cancelFlag.isSet {
-                try? FileManager.default.removeItem(at: destination)
-                throw ImportError.cancelled
+                if cancelled || cancelFlag.isSet {
+                    try? FileManager.default.removeItem(at: destination)
+                    throw ImportError.cancelled
+                }
             }
 
             statusText = "登録しています…"
@@ -281,6 +318,34 @@ final class ImportService: ObservableObject {
             }
         }
         return (bytes, files)
+    }
+
+    /// The folder picker can return the folder *containing* the game (iOS only
+    /// enables "Open" once you are inside a folder).  Accept both: the picked
+    /// folder itself, or its single sub-folder that has engine data.
+    private func resolveProjectFolder(_ url: URL) throws -> URL {
+        func hasEngineData(_ candidate: URL) -> Bool {
+            FileManager.default.fileExists(atPath: candidate.appendingPathComponent("data.xp3").path)
+                || FileManager.default.fileExists(
+                    atPath: candidate.appendingPathComponent("data/startup.tjs").path)
+        }
+        if hasEngineData(url) { return url }
+
+        let children = (try? FileManager.default.contentsOfDirectory(
+            at: url,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles])) ?? []
+        let matches = children.filter { child in
+            let isDir = (try? child.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
+            return isDir && hasEngineData(child)
+        }
+        if matches.count == 1 { return matches[0] }
+        if matches.count > 1 {
+            let names = matches.map(\.lastPathComponent).sorted().joined(separator: ", ")
+            throw ImportError.multipleGames(names)
+        }
+        // No data.xp3 anywhere: let the scan report explain what was found.
+        return url
     }
 
     /// Fingerprint: the archive layout and sizes, which is stable for the same
