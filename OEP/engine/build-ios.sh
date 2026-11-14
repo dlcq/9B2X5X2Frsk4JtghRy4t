@@ -74,8 +74,14 @@ apply_patch() {
         log "patch already applied: $(basename "$patch")"
         return
     fi
-    git -C "$dir" apply --check "$patch" || die "patch does not apply: $(basename "$patch")"
-    git -C "$dir" apply "$patch"
+    if ! git -C "$dir" apply --check "$patch" 2>/dev/null; then
+        # tolerate whitespace / CRLF drift between the patch and the checkout
+        git -C "$dir" apply --check --ignore-whitespace "$patch" ||
+            die "patch does not apply: $(basename "$patch")"
+        git -C "$dir" apply --ignore-whitespace "$patch"
+    else
+        git -C "$dir" apply "$patch"
+    fi
     log "applied $(basename "$patch")"
 }
 

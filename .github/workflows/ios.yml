@@ -87,9 +87,11 @@ jobs:
 
       - name: Fetch pinned engine sources and apply OEP patches
         working-directory: OEP/engine
+        shell: bash
         run: |
+          set -o pipefail
           chmod +x build-ios.sh
-          ./build-ios.sh deps
+          ./build-ios.sh deps 2>&1 | tee -a "$GITHUB_WORKSPACE/ci-ios.log"
 
       - name: Configure (iOS Simulator)
         working-directory: OEP/engine

@@ -1,0 +1,3 @@
+# The memfile patch must keep its CRLF context: the upstream blob is CRLF, and
+# normalising this file to LF makes `git apply` fail on a clean clone.
+OEP/engine/patches/0003-memfile-variant-null.patch -text
