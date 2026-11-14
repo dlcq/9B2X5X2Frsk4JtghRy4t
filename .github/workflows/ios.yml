@@ -98,8 +98,7 @@ jobs:
           if [ ! -f "$f" ]; then echo "::error::no build log was produced"; exit 0; fi
           hits=$(grep -nE "CMake Error|CMake Warning at|error:|fatal error|Error [0-9]+|FAILED:|ninja: build stopped|The following" "$f" | head -60)
           if [ -n "$hits" ]; then
-            printf '%s
-' "$hits" | while IFS= read -r line; do echo "::error::$line"; done
+            echo "$hits" | while IFS= read -r line; do echo "::error::$line"; done
           else
             tail -40 "$f" | while IFS= read -r line; do echo "::error::$line"; done
           fi
