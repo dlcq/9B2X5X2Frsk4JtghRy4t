@@ -168,6 +168,17 @@ CI で確認できたこと（GitHub Actions、公開リポジトリ）:
 | エンジンログの可視化 | 診断画面に `krkr.console.log`（UTF-16LE）の末尾を表示・共有。**起動失敗の本当の理由はここに出る** |
 | ログ共有 | 設定 → ログから `oep.log` を共有 |
 
+## 7.8 2回目の実機クラッシュ（原因判明・修正済み）
+
+`oep.log` とエンジンログから原因が特定できた。
+
+| 事象 | 原因 | 対応 |
+|---|---|---|
+| `Cannot find storage startup.tjs` → スクリプト例外 → SIGABRT | 現行 krkrz は**プロジェクトフォルダ内の `*.xp3` を自動マウントしない**（1.2.0.3 の "mount domain" 相当が無い）。プロジェクトパスをフォルダで渡すと `startup.tjs` が見つからない | パッチ 0001 に、プロジェクトフォルダの `*.xp3` を `TVPAddAutoPath("...xp3>")` で登録する処理を追加（`data.xp3` 先頭、`patch*.xp3` 最後） |
+| `Data path does not exist, trying to make it ... failed.` | `user://`（SDL user storage）のディレクトリが無い環境（sideload ツールの入れ子コンテナ） | エンジン起動前に `<Application Support>/OEP/<appname>/` を作成し、結果をログに残す |
+
+この修正は CI（`26dd60d` 以降）でビルド確認。実機確認は次回インストール後。
+
 ## 8. 意図的に実装しなかったもの
 
 | 項目 | 理由 |

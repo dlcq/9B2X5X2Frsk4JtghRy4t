@@ -17,10 +17,22 @@ index aeec889..2cd1b24 100644
  #else
  #include <SDL3/SDL_init.h>   // SDL_AppResult / SDL_App* コールバック型
 diff --git a/sdl3/environ/stdapp.cpp b/sdl3/environ/stdapp.cpp
-index 0e6647e..36cf2ed 100644
+index 0e6647e..7dcde44 100644
 --- a/sdl3/environ/stdapp.cpp
 +++ b/sdl3/environ/stdapp.cpp
-@@ -15,6 +15,12 @@
+@@ -6,15 +6,24 @@
+ 
+ #include "app.h"
+ #include "ExecutableOverlay.h"
++#include <algorithm>
++#include <cctype>
+ #include <filesystem>
+ #include <fstream>
+ #include <iterator>
++#include <vector>
+ #include <SDL3/SDL_dialog.h>
+ #if defined(SDL_PLATFORM_MACOS)
+ #include <mach-o/dyld.h>
  #include <climits>
  #endif
  
@@ -33,7 +45,7 @@ index 0e6647e..36cf2ed 100644
  class MySDL3Application : public SDL3Application  {
  
  public:
-@@ -190,6 +196,24 @@ bool MySDL3Application::InitPath()
+@@ -190,6 +199,24 @@ bool MySDL3Application::InitPath()
  	extern int GetSystemSecurityOption(const char *name);
  	const bool acceptFileArgument = GetSystemSecurityOption("acceptfilenameargument") != 0;
  	std::string projectPath;
@@ -58,3 +70,62 @@ index 0e6647e..36cf2ed 100644
  	if (!acceptFileArgument && _nargs.size() > 1 &&
  	    (_nargs[1].rfind(TJS_W("web://"), 0) == 0 || _nargs[1].rfind(TJS_W("webnc://"), 0) == 0)) {
  		// web:// / webnc:// メディアをプロジェクトパスに指定 (wasm のオンデマンド
+@@ -265,6 +292,58 @@ bool MySDL3Application::InitPath()
+ 	TVPUtf8ToUtf16(_AppPath, appPath);
+ 	TVPUtf8ToUtf16(_ProjectPath, projectPath);
+ 
++#if defined(OEP_HOST_APP)
++	// OEP: the project folder is a normal directory holding the title's *.xp3
++	// archives.  KiriKiri 1.x mounted every archive in the project directory
++	// ("mount domain ..."), the current core does not, so register them here as
++	// auto paths.  data.xp3 comes first and patch archives last, so a patch wins
++	// for files that exist in both.
++	if (!projectPath.empty()) {
++		std::error_code ec;
++		const std::filesystem::path projectDir(projectPath);
++		if (std::filesystem::is_directory(projectDir, ec)) {
++			std::vector<std::filesystem::path> archives;
++			for (auto it = std::filesystem::directory_iterator(projectDir, ec);
++			     !ec && it != std::filesystem::directory_iterator(); it.increment(ec)) {
++				const std::filesystem::path &candidate = it->path();
++				std::string extension = candidate.extension().string();
++				for (char &ch : extension) ch = (char)std::tolower((unsigned char)ch);
++				if (extension != ".xp3") continue;
++				std::error_code fileEc;
++				if (std::filesystem::is_regular_file(candidate, fileEc)) archives.push_back(candidate);
++			}
++			auto lowerName = [](const std::filesystem::path &path) {
++				std::string name = path.filename().string();
++				for (char &ch : name) ch = (char)std::tolower((unsigned char)ch);
++				return name;
++			};
++			auto rank = [&lowerName](const std::filesystem::path &path) {
++				const std::string name = lowerName(path);
++				if (name.rfind("patch", 0) == 0) return 2;   // applied last (wins)
++				if (name == "data.xp3") return 0;            // base data first
++				return 1;
++			};
++			std::sort(archives.begin(), archives.end(),
++			          [&](const std::filesystem::path &a, const std::filesystem::path &b) {
++				          const int ra = rank(a), rb = rank(b);
++				          if (ra != rb) return ra < rb;
++				          return lowerName(a) < lowerName(b);
++			          });
++			for (const auto &archive : archives) {
++				std::string name = archive.string() + ">";
++				tjs_string wide;
++				TVPUtf8ToUtf16(wide, name);
++				try {
++					TVPAddAutoPath(ttstr(wide));
++					TVPLOG_INFO("OEP: mounted archive {}", name);
++				} catch (...) {
++					TVPLOG_WARNING("OEP: could not mount archive {}", name);
++				}
++			}
++		}
++	}
++#endif
++
+ 	// 実行ファイルのフルパス。 <exe名>.cf / <exe名>.cfu の名前決定と
+ 	// -userconf の書き出し先に使うため、 実際の exe 名を取る必要がある
+ 	// ( 以前は固定で "krkrz.exe" を繋いでいた )。

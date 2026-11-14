@@ -356,6 +356,26 @@ extern "C" int OEPHostEngineStart(const char *utf8ProjectPath) {
     argv.push_back(nullptr);
     OEPCoreLog("engine", "user:// = orgname=" + orgName + " appname=" + appName);
 
+    // krkrz maps user:// to SDL_OpenUserStorage(orgname, appname); create that
+    // directory up front so TVPEnsureDataPathDirectory() cannot fail on the
+    // sandbox layouts used by sideloading helpers.
+    @autoreleasepool {
+        NSString *support = [NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory,
+                                                                NSUserDomainMask, YES) firstObject];
+        if (support) {
+            NSString *path = [support stringByAppendingPathComponent:
+                [NSString stringWithFormat:@"%s/%s", orgName.c_str(), appName.c_str()]];
+            NSError *error = nil;
+            const BOOL ok = [[NSFileManager defaultManager] createDirectoryAtPath:path
+                                                     withIntermediateDirectories:YES
+                                                                      attributes:nil
+                                                                           error:&error];
+            OEPCoreLog("engine", std::string("user data dir ") + (ok ? "ready: " : "failed: ") +
+                                     [path UTF8String] +
+                                     (error ? std::string(" (") + [[error localizedDescription] UTF8String] + ")" : std::string()));
+        }
+    }
+
     OEPCoreLog("engine", "calling SDL_AppInit (project=" + std::string(utf8ProjectPath) + ")");
     OEPHostSetPhase("app-init");
 
