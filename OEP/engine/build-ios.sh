@@ -108,6 +108,8 @@ deps() {
     fetch_commit "$ios_url" "$ios_commit" "$KRKRZ_IOS"
     apply_patch "$KRKRZ_DEV/src/core" "$PATCH_DIR/0001-krkrz-core-oep-host.patch"
     apply_patch "$KRKRZ_IOS" "$PATCH_DIR/0002-krkrz-ios-oep-app.patch"
+    # memfile (submodule): (tTJSVariant)NULL is ambiguous on 64-bit non-Windows
+    apply_patch "$KRKRZ_DEV/src/plugins/memfile" "$PATCH_DIR/0003-memfile-variant-null.patch"
 }
 
 generate_config() {

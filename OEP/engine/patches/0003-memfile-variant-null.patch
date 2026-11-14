@@ -1,0 +1,31 @@
+diff --git a/Main.cpp b/Main.cpp
+index 0f7a867..f92c7a1 100644
+--- a/Main.cpp
++++ b/Main.cpp
+@@ -683,7 +683,7 @@ public:
+ 	 * @return ファイル情報 %[name:名前, size:サイズ, isDirectory:ディレクトリならtrue]
+ 	 */
+ 	static tTJSVariant getMemoryFileInfo(ttstr filename) {
+-		return mem ? mem->getInfo(filename) : (tTJSVariant)NULL;
++		return mem ? mem->getInfo(filename) : tTJSVariant();
+ 	}
+ 	
+ 	/**
+@@ -692,7 +692,7 @@ public:
+ 	 * @return ファイルが存在したら内容を octet で返す。なければ void
+ 	 */
+ 	static tTJSVariant getMemoryFileData(ttstr filename) {
+-		return mem ? mem->getData(filename) : (tTJSVariant)NULL;
++		return mem ? mem->getData(filename) : tTJSVariant();
+ 	}
+ 
+ 	/**
+@@ -701,7 +701,7 @@ public:
+ 	 * @return ファイル情報の配列 %[name:名前, size:サイズ, isDirectory:ディレクトリならtrue]
+ 	 */
+ 	static tTJSVariant getMemoryDirectory(ttstr dirname) {
+-		return mem ? mem->getDirectory(dirname) : (tTJSVariant)NULL;
++		return mem ? mem->getDirectory(dirname) : tTJSVariant();
+ 	}
+ 
+ protected:

@@ -119,13 +119,16 @@ export DEVELOPMENT_TEAM=XXXXXXXXXX   # Apple Developer の Team ID
 | `wamsoft/krkrz_ios` @ pinned | iOS ビルド定義。**パッチ 0002** を適用 |
 | SDL3 `release-3.4.4` | krkrz_ios の CMake が FetchContent で取得 |
 
-パッチは 2 つだけ:
+パッチは 3 つだけ:
 
 1. `0001-krkrz-core-oep-host.patch`
    - `sdl3/environ/main.cpp`: `OEP_HOST_APP` のとき `SDL_MAIN_HANDLED`（ホストが `main()` を持つ）
    - `sdl3/environ/stdapp.cpp`: `OEPHostProjectPath()` があればそれをプロジェクトフォルダにする
 2. `0002-krkrz-ios-oep-app.patch`
    - `CMakeLists.txt`: `-DOEP_APP_DIR` 指定時に Swift を有効化し、`OEP/ios` を `add_subdirectory`
+3. `0003-memfile-variant-null.patch`
+   - `src/plugins/memfile`（サブモジュール）: `(tTJSVariant)NULL` が 64bit 非 Windows で
+     曖昧になるため `tTJSVariant()` に置換（上流の移植性バグ）
 
 ### 2.4 プラグイン構成
 
