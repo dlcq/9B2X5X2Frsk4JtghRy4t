@@ -6,6 +6,7 @@
 // repack their own folder into data.xp3 if a title needs an archive.
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 #include "oep/error.hpp"

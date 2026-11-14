@@ -130,7 +130,7 @@ final class SessionController: ObservableObject {
 
     // MARK: - C events
 
-    func handle(event: Int32, detail: String) {
+    func handle(event: Int, detail: String) {
         switch event {
         case OEPEngineEventStarting:
             OEPCore.log(1, "engine", "SDL_AppInit: \(detail)")
@@ -190,7 +190,7 @@ private let oepEngineEventCallback: @convention(c) (Int32, UnsafePointer<CChar>?
     event, detail in
     let text = detail.map { String(cString: $0) } ?? ""
     DispatchQueue.main.async {
-        SessionBridge.shared.session?.handle(event: event, detail: text)
+        SessionBridge.shared.session?.handle(event: Int(event), detail: text)
     }
 }
 
