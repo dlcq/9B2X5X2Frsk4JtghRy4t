@@ -100,6 +100,15 @@ NEKOPARA Vol. 1 : krkrz 1.2.0.3 (PE version resource), 9 archives, startup.tjs �
 
 ## 6. ビルド / CI / IPA
 
+CI で確認できたこと（GitHub Actions、公開リポジトリ）:
+
+| ワークフロー | 結果 |
+|---|---|
+| `checks.yml` / core (GCC) | ✅ 成功（Linux でビルド + 77テスト + CLI スモーク） |
+| `checks.yml` / Swift typecheck | ✅ 成功（iOS 16 SDK + ブリッジングヘッダで 16 ファイルを型検査） |
+| `checks.yml` / ObjC++ host syntax | ✅ 成功（iOS SDK + SDL3 ヘッダで `-fsyntax-only`） |
+| `ios.yml` / KiriKiri Z app (macOS) | 🟡 失敗（configure 段階。原因を調査中） |
+
 | 項目 | 状態 |
 |---|---|
 | Windows での core ビルド・テスト | ✅ |
