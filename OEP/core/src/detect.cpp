@@ -1,6 +1,7 @@
 #include "oep/detect.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cstring>
 #include <map>
 #include <set>

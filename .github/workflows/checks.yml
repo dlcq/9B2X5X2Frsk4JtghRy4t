@@ -1,0 +1,120 @@
+name: OEP checks
+
+# Fast feedback jobs.  The full iOS app build lives in ios.yml (vcpkg + engine,
+# 30-60 min); these three jobs take a couple of minutes and catch the mistakes
+# that would otherwise only surface deep inside that build:
+#
+#   core   : the portable core with GCC (stricter than MSVC)
+#   swift  : type-check of the SwiftUI launcher against the iOS SDK
+#   host   : syntax check of the Objective-C++ host against SDL3 headers
+#
+# Failures are re-emitted as ::error:: annotations so they are readable from the
+# public check-run API and the pull request UI.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core:
+    name: core (GCC)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S OEP/core -B build/core -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        shell: bash
+        run: set -o pipefail; cmake --build build/core -j 4 2>&1 | tee build.log
+      - name: Test
+        run: ./build/core/oep_tests
+      - name: Report failures
+        if: failure()
+        shell: bash
+        run: |
+          if [ -f build.log ]; then
+            grep -nE "error:|undefined reference|Error [0-9]+" build.log | head -40 | while IFS= read -r line; do
+              echo "::error::${line}"
+            done
+          fi
+      - name: Upload log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: core-build-log
+          path: build.log
+          if-no-files-found: ignore
+
+  swift:
+    name: Swift typecheck (iOS SDK)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Typecheck launcher
+        shell: bash
+        run: |
+          set -o pipefail
+          SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
+          xcrun --sdk iphoneos swiftc -typecheck \
+            -target arm64-apple-ios16.0 \
+            -sdk "$SDK" \
+            -import-objc-header OEP/ios/Host/OEPHost-Bridging-Header.h \
+            OEP/ios/App/*.swift 2>&1 | tee swift.log
+      - name: Report Swift errors
+        if: failure()
+        shell: bash
+        run: |
+          grep -E "error:" swift.log | head -60 | while IFS= read -r line; do
+            echo "::error::${line}"
+          done
+      - name: Upload log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: swift-typecheck-log
+          path: swift.log
+          if-no-files-found: ignore
+
+  host:
+    name: ObjC++ host syntax (SDL3 + iOS SDK)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch SDL3 headers
+        run: git clone --depth 1 --branch release-3.4.4 https://github.com/libsdl-org/SDL.git "$RUNNER_TEMP/sdl"
+      - name: Syntax check host sources
+        shell: bash
+        run: |
+          set -o pipefail
+          SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
+          : > host.log
+          for f in OEP/ios/Host/*.mm; do
+            echo "== $f" | tee -a host.log
+            xcrun --sdk iphoneos clang++ -fsyntax-only -std=c++17 -fobjc-arc \
+              -target arm64-apple-ios16.0 -isysroot "$SDK" \
+              -Wall -Wextra -Wno-unused-parameter \
+              -DOEP_HOST_APP=1 \
+              -I "$RUNNER_TEMP/sdl/include" \
+              -I OEP/core/include \
+              -I OEP/ios/Host \
+              "$f" 2>&1 | tee -a host.log
+          done
+      - name: Report host errors
+        if: failure()
+        shell: bash
+        run: |
+          grep -E "error:" host.log | head -60 | while IFS= read -r line; do
+            echo "::error::${line}"
+          done
+      - name: Upload log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: host-syntax-log
+          path: host.log
+          if-no-files-found: ignore

@@ -2,6 +2,7 @@
 // Codable on the Swift side, and this writer produces scan/diagnostic reports).
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <iomanip>
 #include <sstream>

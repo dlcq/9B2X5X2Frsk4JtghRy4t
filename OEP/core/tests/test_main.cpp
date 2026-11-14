@@ -13,6 +13,7 @@
 #include <fstream>
 #include <functional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "miniz.h"

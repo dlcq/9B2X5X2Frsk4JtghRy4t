@@ -4,6 +4,8 @@
 #include <cctype>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
+#include <utility>
 #include <vector>
 
 #include "fsutil.hpp"
