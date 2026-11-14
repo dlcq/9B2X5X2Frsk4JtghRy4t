@@ -140,7 +140,10 @@ configure() {
         fi
     fi
     log "configure ($sysroot/$arch, $CONFIG)"
+    # CMake 4 removed compatibility with cmake_minimum_required(<3.5); several
+    # upstream dependencies still declare older minimums.
     cmake -S "$KRKRZ_IOS" -B "$BUILD_DIR" -G Xcode \
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
         -DCMAKE_SYSTEM_NAME=iOS \
         -DCMAKE_OSX_SYSROOT="$sysroot" \
         -DCMAKE_OSX_ARCHITECTURES="$arch" \
@@ -185,6 +188,7 @@ ipa_unsigned() {
     local dist_dir="$WORK/build-dist"
     log "configuring an unsigned device build"
     cmake -S "$KRKRZ_IOS" -B "$dist_dir" -G Xcode \
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
         -DCMAKE_SYSTEM_NAME=iOS \
         -DCMAKE_OSX_SYSROOT=iphoneos \
         -DCMAKE_OSX_ARCHITECTURES=arm64 \
