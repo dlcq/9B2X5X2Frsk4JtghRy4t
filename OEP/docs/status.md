@@ -107,7 +107,9 @@ CI で確認できたこと（GitHub Actions、公開リポジトリ）:
 | `checks.yml` / core (GCC) | ✅ 成功（Linux でビルド + 77テスト + CLI スモーク） |
 | `checks.yml` / Swift typecheck | ✅ 成功（iOS 16 SDK + ブリッジングヘッダで 16 ファイルを型検査） |
 | `checks.yml` / ObjC++ host syntax | ✅ 成功（iOS SDK + SDL3 ヘッダで `-fsyntax-only`） |
-| `ios.yml` / KiriKiri Z app (macOS) | 🟡 失敗（configure 段階。原因を調査中） |
+| `ios.yml` / Configure (iOS Simulator) | ✅ 成功（vcpkg 依存・SDL3・krkrz・プラグインを構成） |
+| `ios.yml` / Build (iOS Simulator) | ✅ 成功（エンジン + SwiftUI ホストをリンクし `krkrz.app` を生成） |
+| `ios.yml` / 未署名 IPA | 🟡 生成中/未確認 |
 
 | 項目 | 状態 |
 |---|---|
@@ -130,6 +132,17 @@ CI で確認できたこと（GitHub Actions、公開リポジトリ）:
 これらは macOS と（CI を回すなら）GitHub リポジトリへの push があれば検証できる。
 `OEP/engine/build-ios.sh` と `.github/workflows/ios.yml` はそのための入口として用意してある。
 
+## 7.5 CI で判明した上流の制約（修正済み）
+
+| 事象 | 対応 |
+|---|---|
+| vcpkg を shallow clone すると krkrz の `builtin-baseline` を解決できない | vcpkg を full clone（CI） |
+| CMake 4.x が古い `cmake_minimum_required` を拒否（krkrz_vorbis 等） | `-DCMAKE_POLICY_VERSION_MINIMUM=3.5` |
+| `layerExDraw` / `windowEx` / `menu` / `systemEx` / `messenger` / `fpslimit` / `binaryStream` / `varfile` / `addFont` が `<windows.h>`、`fstat` が `<tchar.h>` | iOS ビルドから除外（スキャナも未対応として報告） |
+| `memfile` の `(tTJSVariant)NULL` が 64bit 非 Windows で曖昧 | パッチ 0003 で `tTJSVariant()` に |
+| elements の accesskit 実装が macOS 専用（`accesskit_macos_*`） | `ios-config.json` の `"a11y": false`（krkrz 自身も iOS では既定 OFF） |
+| 自前パッチ 0001 が関数内で `extern "C"` 宣言していた | ファイルスコープへ移動 |
+
 ## 8. 意図的に実装しなかったもの
 
 | 項目 | 理由 |
@@ -140,3 +153,4 @@ CI で確認できたこと（GitHub Actions、公開リポジトリ）:
 | 画質（描画品質）設定 | DrawDevice の切り替えはエンジン起動時引数/設定ファイルの領域で、OEP からは未実装 |
 | 縦画面専用レイアウト | ゲームは横画面前提。ランチャーは両対応、ゲームは Info.plist の向きに従う |
 | 複数タイトルの同時起動 | エンジンの制約（1 プロセス 1 初期化） |
+| VoiceOver（読み上げ） | elements の accesskit ホストが macOS 専用のため iOS では無効化（krkrz の iOS 既定と同じ） |
