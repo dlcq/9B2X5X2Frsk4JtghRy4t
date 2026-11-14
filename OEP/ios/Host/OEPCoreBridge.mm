@@ -131,7 +131,7 @@ void oepTerminateHandler() {
         std::free(demangled);
     }
     text += " phase=";
-    text += g_phase ? g_phase : "?";
+    text += g_phase ? (const char *)g_phase : "?";
     appendToLogFile(text);
     std::abort();
 }
