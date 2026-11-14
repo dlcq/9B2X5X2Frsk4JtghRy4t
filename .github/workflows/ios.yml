@@ -67,11 +67,22 @@ jobs:
           key: vcpkg-ios-${{ hashFiles('OEP/engine/pins.json', 'OEP/engine/ios-config.json') }}
           restore-keys: vcpkg-ios-
 
+      - name: Cache vcpkg checkout
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.VCPKG_ROOT }}
+          key: vcpkg-checkout-${{ runner.os }}-v1
+
       - name: Bootstrap vcpkg
+        shell: bash
         run: |
-          if [ ! -d "$VCPKG_ROOT" ]; then
-            git clone --depth 1 https://github.com/microsoft/vcpkg.git "$VCPKG_ROOT"
+          # Full clone: the krkrz manifests pin builtin-baseline to a specific
+          # vcpkg commit, and a shallow clone cannot `git show` it.
+          if [ ! -d "$VCPKG_ROOT/.git" ]; then
+            rm -rf "$VCPKG_ROOT"
+            git clone https://github.com/microsoft/vcpkg.git "$VCPKG_ROOT"
           fi
+          git -C "$VCPKG_ROOT" fetch --tags --force origin >/dev/null 2>&1 || true
           "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics
 
       - name: Fetch pinned engine sources and apply OEP patches
