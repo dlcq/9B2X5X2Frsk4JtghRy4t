@@ -141,3 +141,86 @@ enum ProcessMetrics {
 
     static var availableMemory: UInt64 { ProcessInfo.processInfo.physicalMemory }
 }
+
+// MARK: - Engine console log (krkr.console.log)
+
+/// krkrz writes its own console log (UTF-16LE, BOM) into the per-game
+/// `user://` folder.  Reading its tail is the fastest way to see why a title
+/// refused to start — script errors and plugin failures land there.
+enum EngineConsoleLog {
+    struct Entry: Identifiable {
+        var id: String { url.path }
+        var url: URL
+        var modified: Date
+        var size: Int64
+        var text: String
+    }
+
+    static func recent(limit: Int = 3, maxBytes: Int = 24000) -> [Entry] {
+        let manager = FileManager.default
+        let roots = [
+            manager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first,
+            manager.urls(for: .documentDirectory, in: .userDomainMask).first,
+        ].compactMap { $0 }
+
+        var found: [(url: URL, modified: Date, size: Int64)] = []
+        for root in roots {
+            guard let enumerator = manager.enumerator(
+                at: root,
+                includingPropertiesForKeys: [.contentModificationDateKey, .fileSizeKey],
+                options: [.skipsHiddenFiles]) else { continue }
+            for case let url as URL in enumerator {
+                guard url.lastPathComponent == "krkr.console.log" else { continue }
+                let values = try? url.resourceValues(
+                    forKeys: [.contentModificationDateKey, .fileSizeKey])
+                found.append((url,
+                              values?.contentModificationDate ?? .distantPast,
+                              Int64(values?.fileSize ?? 0)))
+            }
+        }
+
+        return found
+            .sorted { $0.modified > $1.modified }
+            .prefix(limit)
+            .map { entry in
+                Entry(url: entry.url,
+                      modified: entry.modified,
+                      size: entry.size,
+                      text: readTail(entry.url, maxBytes: maxBytes))
+            }
+    }
+
+    static func readTail(_ url: URL, maxBytes: Int) -> String {
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return "" }
+        defer { try? handle.close() }
+        let end = (try? handle.seekToEnd()) ?? 0
+        let start = end > UInt64(maxBytes) ? end - UInt64(maxBytes) : 0
+        try? handle.seek(toOffset: start)
+        let data = (try? handle.readToEnd()) ?? Data()
+        return decode(data)
+    }
+
+    static func decode(_ data: Data) -> String {
+        var body = data
+        if body.count >= 2 {
+            let first = body[body.startIndex]
+            let second = body[body.index(after: body.startIndex)]
+            if first == 0xFF && second == 0xFE {
+                body = body.dropFirst(2)
+                return String(decoding: Array(body), as: UTF16.self)
+            }
+            if first == 0xFE && second == 0xFF {
+                body = body.dropFirst(2)
+                return String(decoding: Array(body), as: UTF16.self)
+            }
+        }
+        if let text = String(data: body, encoding: .utf8) { return text }
+        return String(decoding: body, as: UTF8.self)
+    }
+
+    /// Our own crash-safe file log (Documents/OEP/oep.log).
+    static var hostLogURL: URL? {
+        guard let pointer = OEPHostLogFilePath() else { return nil }
+        return URL(fileURLWithPath: String(cString: pointer))
+    }
+}

@@ -12,12 +12,14 @@ struct DiagnosticsView: View {
     @State private var isScanning = false
     @State private var memoryBytes: UInt64 = 0
     @State private var showRawJSON = false
+    @State private var engineLogs: [EngineConsoleLog.Entry] = []
     @State private var shareURL: URL?
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 liveSection
+                engineLogSection
                 if let report {
                     engineSection(report)
                     consoleLogSection(report)
@@ -57,6 +59,7 @@ struct DiagnosticsView: View {
         }
         .task {
             memoryBytes = ProcessMetrics.residentMemoryBytes()
+            engineLogs = EngineConsoleLog.recent()
             if report == nil { await loadStoredOrScan() }
         }
     }
@@ -78,6 +81,71 @@ struct DiagnosticsView: View {
                     InfoRow(key: "コア", value: OEPCore.version)
                     InfoRow(key: "ログ件数", value: "\(OEPCore.logCount)")
                     InfoRow(key: "フォルダ", value: library.folder(for: game).path)
+                }
+            }
+        }
+    }
+
+    /// The engine's own console log is the authoritative reason when a title
+    /// refuses to start (script errors, missing plug-ins, archive problems).
+    private var engineLogSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SectionHeader(title: "Engine console log",
+                          trailing: engineLogs.isEmpty ? nil : "\(engineLogs.count)")
+            OEPCard(padding: 14) {
+                VStack(alignment: .leading, spacing: 12) {
+                    if engineLogs.isEmpty {
+                        Text("krkr.console.log はまだありません。エンジンを一度起動すると、ここにエラーの詳細が出ます。")
+                            .font(OEPFont.body(12))
+                            .foregroundStyle(palette.subtext)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } else {
+                        ForEach(engineLogs) { entry in
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack(spacing: 6) {
+                                    Text(entry.url.path.replacingOccurrences(
+                                        of: NSHomeDirectory(), with: "~"))
+                                        .font(OEPFont.mono(9))
+                                        .foregroundStyle(palette.subtext)
+                                        .lineLimit(1)
+                                        .truncationMode(.middle)
+                                    Spacer(minLength: 6)
+                                    Text(Fmt.date(entry.modified))
+                                        .font(OEPFont.mono(9))
+                                        .foregroundStyle(palette.subtext.opacity(0.7))
+                                }
+                                Text(entry.text.isEmpty ? "(空)" : entry.text)
+                                    .font(OEPFont.mono(9))
+                                    .foregroundStyle(palette.text)
+                                    .lineLimit(120)
+                                    .textSelection(.enabled)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                ShareLink(item: entry.url) {
+                                    Label("ログを共有", systemImage: "square.and.arrow.up")
+                                        .font(OEPFont.label(10))
+                                        .foregroundStyle(palette.blue)
+                                }
+                            }
+                            if entry.id != engineLogs.last?.id {
+                                Divider().overlay(palette.border.opacity(0.4))
+                            }
+                        }
+                    }
+
+                    if let hostLog = EngineConsoleLog.hostLogURL {
+                        Divider().overlay(palette.border.opacity(0.4))
+                        HStack(spacing: 6) {
+                            Text("OEP ログ: \(hostLog.lastPathComponent)")
+                                .font(OEPFont.body(11))
+                                .foregroundStyle(palette.subtext)
+                            Spacer()
+                            ShareLink(item: hostLog) {
+                                Label("共有", systemImage: "square.and.arrow.up")
+                                    .font(OEPFont.label(10))
+                                    .foregroundStyle(palette.blue)
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -262,6 +330,7 @@ struct DiagnosticsView: View {
             writeShareFile(json: refreshed)
         }
         memoryBytes = ProcessMetrics.residentMemoryBytes()
+        engineLogs = EngineConsoleLog.recent()
     }
 
     private func writeShareFile(json: ScanReport) {

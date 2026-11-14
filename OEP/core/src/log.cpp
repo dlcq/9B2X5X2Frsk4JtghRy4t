@@ -86,8 +86,16 @@ void Logger::log(LogLevel level, std::string category, std::string message) {
     entry.message = std::move(message);
 
     std::lock_guard<std::mutex> lock(mutex_);
-    entries_.push_back(std::move(entry));
+    entries_.push_back(entry);
     while (entries_.size() > capacity_) entries_.pop_front();
+    for (const auto& sink : sinks_) {
+        if (sink) sink(entry);
+    }
+}
+
+void Logger::addSink(Sink sink) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    sinks_.push_back(std::move(sink));
 }
 
 void Logger::debug(const std::string& c, const std::string& m) { log(LogLevel::Debug, c, m); }

@@ -70,6 +70,13 @@ int OEPHostLogCount(void);
 // Library bookkeeping used by the playtime display.
 void OEPHostSetSessionGameID(const char *gameID);
 
+// Diagnostics: mirror the in-process log into a file so a crash cannot lose it,
+// and install OS-level crash breadcrumbs.  Safe to call more than once.
+void OEPHostInstallDiagnostics(void);
+
+// UTF-8 path of the file log (Documents/OEP/oep.log).  Empty if unavailable.
+const char *OEPHostLogFilePath(void);
+
 void OEPHostFree(char *pointer);
 
 // ---------------------------------------------------------------- Swift side

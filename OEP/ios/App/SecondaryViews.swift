@@ -10,6 +10,7 @@ struct LogsView: View {
     @State private var filter: OEPLogLine.Level = .debug
     @State private var query = ""
     @State private var shareURL: URL?
+    @State private var fileLogURL: URL?
     @State private var showClearConfirm = false
 
     private var visible: [OEPLogLine] {
@@ -52,6 +53,11 @@ struct LogsView: View {
                 if let shareURL {
                     ShareLink(item: shareURL) {
                         Image(systemName: "square.and.arrow.up")
+                    }
+                }
+                if let fileLogURL {
+                    ShareLink(item: fileLogURL) {
+                        Image(systemName: "doc.badge.arrow.up")
                     }
                 }
                 Button {
@@ -156,6 +162,7 @@ struct LogsView: View {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("oep-log.txt")
         try? text.data(using: .utf8)?.write(to: url, options: .atomic)
         shareURL = url
+        fileLogURL = EngineConsoleLog.hostLogURL
     }
 }
 

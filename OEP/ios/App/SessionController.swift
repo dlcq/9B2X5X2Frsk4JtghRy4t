@@ -148,7 +148,26 @@ final class SessionController: ObservableObject {
             OEPCore.log(1, "engine", "resumed (foreground)")
         case OEPEngineEventFailed:
             OEPCore.log(3, "engine", "failure: \(detail)")
-            lastFailureMessage = detail.isEmpty ? "エンジンの初期化に失敗しました。" : detail
+            let message = detail.isEmpty ? "エンジンの初期化に失敗しました。" : detail
+            lastFailureMessage = message
+            // The C side emits this synchronously while starting; keep the most
+            // specific message instead of the generic code-based one.
+            switch phase {
+            case .preparing(let game):
+                phase = .failed(message)
+                finishSession(addPlaytime: false)
+                engineRestartRequired = OEPHostEngineSessionUsed() != 0
+                onSessionEnded?()
+                _ = game
+            case .running(let game):
+                phase = .failed(message)
+                finishSession(addPlaytime: true)
+                engineRestartRequired = OEPHostEngineSessionUsed() != 0
+                onSessionEnded?()
+                _ = game
+            default:
+                break
+            }
         case OEPEngineEventEnded:
             OEPCore.log(1, "engine", "engine ended: \(detail)")
             if let game = phase.game {

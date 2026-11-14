@@ -7,6 +7,7 @@
 
 #include <cstddef>
 #include <deque>
+#include <functional>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -47,11 +48,17 @@ public:
 
     void setCapacity(std::size_t capacity);
 
+    /// Called for every entry that passes the minimum level.  Used by the iOS
+    /// host to mirror the log into a file so a crash does not lose it.
+    using Sink = std::function<void(const LogEntry &)>;
+    void addSink(Sink sink);
+
 private:
     Logger() = default;
 
     mutable std::mutex mutex_;
     std::deque<LogEntry> entries_;
+    std::vector<Sink> sinks_;
     std::size_t capacity_ = 4000;
     LogLevel minimum_ = LogLevel::Debug;
 };

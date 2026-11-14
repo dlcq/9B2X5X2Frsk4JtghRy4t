@@ -156,6 +156,18 @@ CI で確認できたこと（GitHub Actions、公開リポジトリ）:
 この修正は CI（7c5841d）で Simulator / 実機 IPA のビルド成功まで確認済み。
 **実機での動作確認はユーザー側での再インストール後に未実施。**
 
+## 7.7 起動時クラッシュへの対策（実装済み・実機確認待ち）
+
+実機で PLAY 直後にクラッシュしたため、原因を取れるようにした。
+
+| 対策 | 内容 |
+|---|---|
+| 例外の捕捉 | `SDL_AppInit` / エンジンループ / `SDL_AppQuit` を C++ の `try`/`catch(...)` と `@try`/`@catch` で包み、TJS/KAG 例外でもプロセスを落とさず `SessionFailureOverlay` に理由を出す |
+| クラッシュ耐性ログ | `oep::Logger` にファイルシンクを追加し、`Documents/OEP/oep.log` へ逐次書き出し（1MB でローテーション） |
+| 致命シグナル | SIGABRT/SEGV/BUS/ILL/FPE/TRAP で `[FATAL] SIGxxx` をログへ追記してから再送出、`NSException` も記録 |
+| エンジンログの可視化 | 診断画面に `krkr.console.log`（UTF-16LE）の末尾を表示・共有。**起動失敗の本当の理由はここに出る** |
+| ログ共有 | 設定 → ログから `oep.log` を共有 |
+
 ## 8. 意図的に実装しなかったもの
 
 | 項目 | 理由 |

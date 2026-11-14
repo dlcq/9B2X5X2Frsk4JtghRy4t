@@ -18,6 +18,7 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <exception>
 #include <vector>
 #include <mutex>
 #include <string>
@@ -105,12 +106,28 @@ static OEPEngineDisplayLink *g_driver = nil;
     SDL_Event event;
     SDL_AppResult rc = SDL_APP_CONTINUE;
     // Mirror SDL_IterateMainCallbacks: pump, dispatch what is queued, iterate.
-    SDL_PumpEvents();
-    while (SDL_PollEvent(&event)) {
-        rc = SDL_AppEvent(state, &event);
-        if (rc != SDL_APP_CONTINUE) break;
+    // A TJS error inside the game must not take the process down; report it and
+    // end the session cleanly so the launcher and the log survive.
+    @try {
+        try {
+            SDL_PumpEvents();
+            while (SDL_PollEvent(&event)) {
+                rc = SDL_AppEvent(state, &event);
+                if (rc != SDL_APP_CONTINUE) break;
+            }
+            if (rc == SDL_APP_CONTINUE) rc = SDL_AppIterate(state);
+        } catch (const std::exception &ex) {
+            OEPCoreLog("engine", std::string("exception in the engine loop: ") + ex.what());
+            rc = SDL_APP_FAILURE;
+        } catch (...) {
+            OEPCoreLog("engine", "TJS/KAG exception in the engine loop (see the engine console log)");
+            rc = SDL_APP_FAILURE;
+        }
+    } @catch (NSException *ex) {
+        OEPCoreLog("engine", std::string("Objective-C exception in the engine loop: ") +
+                                (ex.reason ? [ex.reason UTF8String] : "?"));
+        rc = SDL_APP_FAILURE;
     }
-    if (rc == SDL_APP_CONTINUE) rc = SDL_AppIterate(state);
 
     if (rc != SDL_APP_CONTINUE) {
         [self finishWith:rc];
@@ -141,7 +158,15 @@ static OEPEngineDisplayLink *g_driver = nil;
     }
     if (state) {
         // TVPSystemUninit + audio/storage teardown happen here.
-        SDL_AppQuit(state, result);
+        @try {
+            try {
+                SDL_AppQuit(state, result);
+            } catch (...) {
+                OEPCoreLog("engine", "teardown threw a C++ exception");
+            }
+        } @catch (NSException *ex) {
+            OEPCoreLog("engine", "teardown threw an Objective-C exception");
+        }
     }
     g_driver = nil;
     emit(OEPEngineEventEnded, result == SDL_APP_SUCCESS ? "success" : "failure");
@@ -225,6 +250,7 @@ static OEPLifecycleObserver *g_lifecycle = nil;
 
 // ---------------------------------------------------------------- C API
 extern "C" void OEPHostSetEngineCallback(OEPEngineEventCallback callback) {
+    OEPHostInstallDiagnostics();
     std::lock_guard<std::mutex> lock(g_mutex);
     g_callback = callback;
 }
@@ -310,11 +336,39 @@ extern "C" int OEPHostEngineStart(const char *utf8ProjectPath) {
     argv.push_back(nullptr);
     OEPCoreLog("engine", "user:// = orgname=" + orgName + " appname=" + appName);
 
+    OEPCoreLog("engine", "calling SDL_AppInit (project=" + std::string(utf8ProjectPath) + ")");
+
     void *state = nullptr;
-    const SDL_AppResult rc = SDL_AppInit(&state, static_cast<int>(argStore.size()), argv.data());
-    if (rc != SDL_APP_CONTINUE) {
-        if (state) SDL_AppQuit(state, rc);
-        emit(OEPEngineEventFailed, "engine initialisation failed");
+    SDL_AppResult rc = SDL_APP_CONTINUE;
+    std::string failure;
+
+    @try {
+        try {
+            rc = SDL_AppInit(&state, static_cast<int>(argStore.size()), argv.data());
+        } catch (const std::exception &ex) {
+            failure = std::string("C++ exception during engine init: ") + ex.what();
+        } catch (...) {
+            // TJS/KAG exceptions (eTJS) are not std::exception.
+            failure = "TJS/KAG exception during engine init (see the engine console log)";
+        }
+    } @catch (NSException *ex) {
+        failure = std::string("Objective-C exception during engine init: ") +
+                  (ex.reason ? [ex.reason UTF8String] : "?");
+    }
+
+    OEPCoreLog("engine", "SDL_AppInit returned " + std::to_string(static_cast<int>(rc)) +
+                             (failure.empty() ? std::string() : (", " + failure)));
+
+    if (!failure.empty() || rc != SDL_APP_CONTINUE) {
+        if (!failure.empty()) OEPCoreLog("engine", failure);
+        // Best-effort teardown; the engine may be partially initialised.
+        @try {
+            if (state) SDL_AppQuit(state, rc);
+        } @catch (NSException *ex) {
+            OEPCoreLog("engine", "SDL_AppQuit threw while cleaning up a failed start");
+        }
+        SDL_Quit();
+        emit(OEPEngineEventFailed, failure.empty() ? "engine initialisation failed" : failure.c_str());
         return -4;
     }
 

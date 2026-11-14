@@ -156,7 +156,7 @@ struct SessionFailureOverlay: View {
                         .foregroundStyle(palette.partial)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                Text("診断画面のログに、エンジンが出力したエラーが残っています。")
+                Text("「診断」→「Engine console log」にエンジン自身のエラーが残っています。OEP のログは「設定」→「ログ」から共有できます。")
                     .font(OEPFont.body(11))
                     .foregroundStyle(palette.subtext.opacity(0.8))
                 Button("閉じる", action: onClose)
