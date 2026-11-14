@@ -133,12 +133,12 @@ export DEVELOPMENT_TEAM=XXXXXXXXXX   # Apple Developer の Team ID
 
 ```
 json KAGParserEx extrans AlphaMovie scriptsEx csvParser lineparser
-fstat memfile shrinkCopy virtualpad iosconfig
+memfile shrinkCopy virtualpad iosconfig
 ```
 
 - krkrz_dev のプラグインのうち `layerExDraw` / `windowEx` / `menu` / `systemEx` /
-  `messenger` / `fpslimit` / `binaryStream` / `varfile` / `addFont` は **無条件に `<windows.h>` を
-  インクルードする Win32 専用**なので iOS ビルドには入れていない（CI で実際に
+  `messenger` / `fpslimit` / `binaryStream` / `varfile` / `addFont`（`<windows.h>`）と
+  `fstat`（`<tchar.h>`）は **Win32 専用**なので iOS ビルドには入れていない（CI で実際に
   `layerExDraw/LayerExDraw.hpp:4: 'windows.h' file not found` を確認して除外した）。
   OEP のスキャナもこれらを「未対応」として報告する。
 

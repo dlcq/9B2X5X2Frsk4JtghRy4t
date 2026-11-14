@@ -373,7 +373,7 @@ const PluginKnowledge kPlugins[] = {
     {"messenger", PluginSupport::Missing, "krkrz_dev messenger is Win32 only"},
     {"addfont", PluginSupport::Partial, "krkrz_dev addFont is Win32 only; fonts are loaded from the project instead"},
     {"fpslimit", PluginSupport::Missing, "krkrz_dev fpslimit is Win32 only; OEP paces frames with CADisplayLink"},
-    {"fstat", PluginSupport::Available, "fstat (krkrz_dev plugin)"},
+    {"fstat", PluginSupport::Missing, "krkrz_dev fstat is Win32 only (tchar.h)"},
     {"savestruct", PluginSupport::Available, "saveStruct (krkrz_dev plugin)"},
     {"memfile", PluginSupport::Available, "memfile (krkrz_dev plugin)"},
     {"sigcheck", PluginSupport::Available, "sigcheck (krkrz_dev plugin)"},

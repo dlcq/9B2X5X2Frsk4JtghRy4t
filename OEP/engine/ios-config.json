@@ -32,7 +32,6 @@
       "scriptsEx",
       "csvParser",
       "lineparser",
-      "fstat",
       "memfile",
       "shrinkCopy",
       "virtualpad",
