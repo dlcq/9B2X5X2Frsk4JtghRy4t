@@ -158,6 +158,7 @@ memfile shrinkCopy virtualpad iosconfig
 | Swift のブリッジングヘッダが見つからない | `OEP/ios/Host/OEPHost-Bridging-Header.h` の絶対パスが `SWIFT_OBJC_BRIDGING_HEADER` に設定されているか確認 |
 | `SDL_RunApp` の多重定義 | `OEP_HOST_APP` がエンジン側にも定義されているか（`OEP/ios/CMakeLists.txt` の `target_compile_definitions`） |
 | プラグインのコンパイルエラー | `ios-config.json` の `cmake.plugins` から外す |
+| `accesskit_host.cpp: error: use of undeclared identifier 'accesskit_macos_*'` | elements のアクセシビリティ実装が macOS 専用。`ios-config.json` の `"a11y"` を `false` にする（krkrz 自身も iOS では既定 OFF） |
 | `krkrz.app` の署名エラー | `DEVELOPMENT_TEAM` 未設定、または Keychain のロック。`security set-key-partition-list` が必要な場合あり |
 | `CMake Error ... cmake_minimum_required: Compatibility with CMake < 3.5 has been removed` | CMake 4.x で古い依存を構成したときに出る。`build-ios.sh` は `-DCMAKE_POLICY_VERSION_MINIMUM=3.5` を渡して回避している |
 | `vcpkg ... failed to git show versions/baseline.json` | vcpkg を shallow clone すると krkrz の `builtin-baseline` を解決できない。full clone する（CI はそうしている） |

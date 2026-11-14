@@ -15,7 +15,7 @@
   ],
   "graphics": "gles",
   "repl": false,
-  "a11y": true,
+  "a11y": false,
   "ipa": {
     "baseName": "OEP"
   },
@@ -48,5 +48,6 @@
     "LSSupportsOpeningDocumentsInPlace": true,
     "CADisableMinimumFrameDurationOnPhone": true,
     "UIRequiresFullScreen": true
-  }
+  },
+  "_a11y_note": "VoiceOver support is disabled on iOS: elements' accesskit host only implements the macOS adapter, and krkrz itself defaults KRKRZ_USE_A11Y to OFF for IOS. The TJS a11y APIs still exist, they just do not reach the OS."
 }
