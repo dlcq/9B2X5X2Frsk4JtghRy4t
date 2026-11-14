@@ -132,10 +132,15 @@ export DEVELOPMENT_TEAM=XXXXXXXXXX   # Apple Developer の Team ID
 `OEP/engine/ios-config.json` の `cmake.plugins`。既定は:
 
 ```
-json KAGParserEx extrans layerExDraw AlphaMovie windowEx menu scriptsEx systemEx
-csvParser lineparser messenger fpslimit fstat memfile binaryStream varfile
-shrinkCopy addFont virtualpad iosconfig
+json KAGParserEx extrans AlphaMovie scriptsEx csvParser lineparser
+fstat memfile shrinkCopy virtualpad iosconfig
 ```
+
+- krkrz_dev のプラグインのうち `layerExDraw` / `windowEx` / `menu` / `systemEx` /
+  `messenger` / `fpslimit` / `binaryStream` / `varfile` / `addFont` は **無条件に `<windows.h>` を
+  インクルードする Win32 専用**なので iOS ビルドには入れていない（CI で実際に
+  `layerExDraw/LayerExDraw.hpp:4: 'windows.h' file not found` を確認して除外した）。
+  OEP のスキャナもこれらを「未対応」として報告する。
 
 - iOS 専用の `virtualpad` / `iosconfig` は `krkrz_ios/plugins` から取る。
 - タイトル固有プラグイン（`yuzuex`, `motionplayer`, `emoteplayer`, `squirrel` など）は

@@ -166,7 +166,7 @@ DLL だが、krkrz_dev では core の movie-player として実装されてい�
 | XP3 | 9 / 全て解析可・内容可読 | 15 / 解析可・内容可読（+ PE 1） |
 | 名前保護 | hex ハッシュ名 | 連番文字名 |
 | 起動スタブ | 316 B TJS2 バイトコード | 同左（同一ハッシュ） |
-| iOS で不足するプラグイン | `emoteplayer`, `squirrel`, `psbfile`, `kztouch`, `win32dialog`, `krkrsteam`, D3D 系 | `motionplayer`, `yuzuex`, `lzfs`, `msdfrender`, `wfTypicalDSP`, `psbfile`, `win32dialog`, `win32ole`, Steam 系 |
+| iOS で不足するプラグイン | `emoteplayer`, `squirrel`, `psbfile`, `kztouch`, `win32dialog`, `krkrsteam`, `layerExDraw`(Win32), D3D 系 | `motionplayer`, `yuzuex`, `lzfs`, `msdfrender`, `wfTypicalDSP`, `psbfile`, `win32dialog`, `win32ole`, `menu`(Win32), Steam 系 |
 | OEP の判定 | **一部対応**（起動系は揃うが E-mote/Squirrel が無い） | **一部対応**（motionplayer/yuzuex が無い） |
 
 判定は OEP core の `scanGame()` が機械的に出したもので、`OEP/docs/status.md` と UI の
