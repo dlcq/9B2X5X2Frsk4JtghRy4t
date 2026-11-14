@@ -201,21 +201,31 @@ enum EngineConsoleLog {
     }
 
     static func decode(_ data: Data) -> String {
-        var body = data
-        if body.count >= 2 {
-            let first = body[body.startIndex]
-            let second = body[body.index(after: body.startIndex)]
-            if first == 0xFF && second == 0xFE {
-                body = body.dropFirst(2)
-                return String(decoding: Array(body), as: UTF16.self)
-            }
-            if first == 0xFE && second == 0xFF {
-                body = body.dropFirst(2)
-                return String(decoding: Array(body), as: UTF16.self)
-            }
+        let bytes = Array(data)
+        if bytes.count >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE {
+            return decodeUTF16(bytes.dropFirst(2), bigEndian: false)
         }
-        if let text = String(data: body, encoding: .utf8) { return text }
-        return String(decoding: body, as: UTF8.self)
+        if bytes.count >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF {
+            return decodeUTF16(bytes.dropFirst(2), bigEndian: true)
+        }
+        if let text = String(data: data, encoding: .utf8) { return text }
+        return String(decoding: bytes, as: UTF8.self)
+    }
+
+    /// krkrz writes the console log as UTF-16 LE with a BOM.  A tail read can cut
+    /// a surrogate pair in half, so a lone trailing byte is dropped.
+    private static func decodeUTF16(_ bytes: ArraySlice<UInt8>, bigEndian: Bool) -> String {
+        let body = Array(bytes)
+        var units = [UInt16]()
+        units.reserveCapacity(body.count / 2)
+        var index = 0
+        while index + 1 < body.count {
+            let first = UInt16(body[index])
+            let second = UInt16(body[index + 1])
+            units.append(bigEndian ? (first << 8 | second) : (second << 8 | first))
+            index += 2
+        }
+        return String(decoding: units, as: UTF16.self)
     }
 
     /// Our own crash-safe file log (Documents/OEP/oep.log).
