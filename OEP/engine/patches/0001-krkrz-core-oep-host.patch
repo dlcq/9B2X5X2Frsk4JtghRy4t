@@ -1,0 +1,51 @@
+diff --git a/sdl3/environ/main.cpp b/sdl3/environ/main.cpp
+index aeec889..2cd1b24 100644
+--- a/sdl3/environ/main.cpp
++++ b/sdl3/environ/main.cpp
+@@ -28,6 +28,13 @@
+ // ブロック)。これによりモーダルのネストループからも JSPI 待機が成立する。
+ #ifndef __EMSCRIPTEN__
+ #define SDL_MAIN_USE_CALLBACKS
++#if defined(OEP_HOST_APP)
++// OEP: the iOS host application owns main() so that the launcher can run first and
++// the session lifecycle stays under its control.  The engine only provides the
++// SDL_AppInit / SDL_AppIterate / SDL_AppEvent / SDL_AppQuit callbacks, which the
++// host drives from its own CADisplayLink (see OEP/ios/Host/OEPEngineHost.mm).
++#define SDL_MAIN_HANDLED
++#endif
+ #include <SDL3/SDL_main.h>
+ #else
+ #include <SDL3/SDL_init.h>   // SDL_AppResult / SDL_App* コールバック型
+diff --git a/sdl3/environ/stdapp.cpp b/sdl3/environ/stdapp.cpp
+index 0e6647e..b019d91 100644
+--- a/sdl3/environ/stdapp.cpp
++++ b/sdl3/environ/stdapp.cpp
+@@ -189,7 +189,28 @@ bool MySDL3Application::InitPath()
+ 	//   プロジェクトパスにしない (ファイル引数として -argN へ渡す)。WINVER と同じ
+ 	extern int GetSystemSecurityOption(const char *name);
+ 	const bool acceptFileArgument = GetSystemSecurityOption("acceptfilenameargument") != 0;
++#if defined(OEP_HOST_APP)
++	extern "C" const char *OEPHostProjectPath(void);
++#endif
+ 	std::string projectPath;
++#if defined(OEP_HOST_APP)
++	// OEP: the iOS launcher passes the imported game folder.  On iOS there is no
++	// argv worth using and the game data never lives in the app bundle, so this
++	// takes precedence over the discovery below.
++	if (const char *oepProject = OEPHostProjectPath()) {
++		if (*oepProject) {
++			projectPath.assign(oepProject);
++			checkLastDelimiter(projectPath, delimiter);
++			TVPLOG_INFO("OEP: project folder from launcher: {}", projectPath.c_str());
++		}
++	}
++#endif
++
++#if defined(OEP_HOST_APP)
++	if (!projectPath.empty()) {
++		// resolved by the launcher above
++	} else
++#endif
+ 	if (!acceptFileArgument && _nargs.size() > 1 &&
+ 	    (_nargs[1].rfind(TJS_W("web://"), 0) == 0 || _nargs[1].rfind(TJS_W("webnc://"), 0) == 0)) {
+ 		// web:// / webnc:// メディアをプロジェクトパスに指定 (wasm のオンデマンド

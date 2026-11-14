@@ -1,0 +1,116 @@
+name: iOS build
+
+# OEP has no macOS machine in the development environment (Windows), so the iOS
+# app is compiled here: the portable core is tested on Linux, then the full
+# KiriKiri Z app is built with the krkrz_ios CMake/Xcode pipeline on a macOS
+# runner.  See OEP/docs/build.md for the local (Mac) equivalent.
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      make_ipa:
+        description: "Build an unsigned IPA artifact"
+        type: boolean
+        default: true
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core:
+    name: OEP core (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S OEP/core -B build/core -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build/core -j 4
+      - name: Test
+        run: ./build/core/oep_tests
+      - name: CLI smoke test
+        run: |
+          mkdir -p /tmp/empty-game
+          ./build/core/oep-cli version
+          ./build/core/oep-cli scan /tmp/empty-game --json > /tmp/scan.json || true
+          head -c 400 /tmp/scan.json
+
+  ios:
+    name: KiriKiri Z app (macOS)
+    runs-on: macos-15
+    timeout-minutes: 180
+    env:
+      VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+      VCPKG_BINARY_SOURCES: "clear;files,${{ github.workspace }}/vcpkg-cache,readwrite"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain versions
+        run: |
+          xcodebuild -version
+          cmake --version
+          python3 --version
+          git --version
+          sw_vers
+
+      - name: Install iOS platform (best effort)
+        run: xcodebuild -downloadPlatform iOS || true
+
+      - name: Cache vcpkg binary packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/vcpkg-cache
+          key: vcpkg-ios-${{ hashFiles('OEP/engine/pins.json', 'OEP/engine/ios-config.json') }}
+          restore-keys: vcpkg-ios-
+
+      - name: Bootstrap vcpkg
+        run: |
+          if [ ! -d "$VCPKG_ROOT" ]; then
+            git clone --depth 1 https://github.com/microsoft/vcpkg.git "$VCPKG_ROOT"
+          fi
+          "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics
+
+      - name: Fetch pinned engine sources and apply OEP patches
+        working-directory: OEP/engine
+        run: |
+          chmod +x build-ios.sh
+          ./build-ios.sh deps
+
+      - name: Configure (iOS Simulator)
+        working-directory: OEP/engine
+        run: ./build-ios.sh configure
+
+      - name: Build (iOS Simulator)
+        working-directory: OEP/engine
+        run: ./build-ios.sh build
+
+      - name: Collect build log on failure
+        if: failure()
+        run: |
+          find OEP/engine/.work -name "*.log" -o -name "*.xcactivitylog" | head -20 || true
+
+      - name: Build unsigned device IPA
+        if: github.event_name != 'pull_request'
+        working-directory: OEP/engine
+        run: ./build-ios.sh ipa-unsigned
+
+      - name: Upload unsigned IPA
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: OEP-unsigned-ipa
+          path: OEP/engine/ipa-unsigned/OEP-unsigned.ipa
+          if-no-files-found: error
+
+      - name: Upload simulator app
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: OEP-simulator-app
+          path: |
+            OEP/engine/.work/build-simulator/krkrz/Debug-iphonesimulator/krkrz.app
+          if-no-files-found: warn

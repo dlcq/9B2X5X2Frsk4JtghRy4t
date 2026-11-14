@@ -1,0 +1,62 @@
+{
+  "bundleId": "dev.oep.oniichanerogeplayer",
+  "displayName": "OEP",
+  "version": "0.1.0",
+  "build": 1,
+  "deploymentTarget": "16.0",
+  "devices": [
+    "iphone",
+    "ipad"
+  ],
+  "orientations": [
+    "portrait",
+    "landscapeLeft",
+    "landscapeRight"
+  ],
+  "graphics": "gles",
+  "repl": false,
+  "a11y": true,
+  "ipa": {
+    "baseName": "OEP"
+  },
+  "cmake": {
+    "pluginFolders": [
+      "${BUILD_SYSTEM_DIR}/plugins",
+      "${KRKRZ_BASE}/krkrz_dev/src/plugins"
+    ],
+    "plugins": [
+      "json",
+      "KAGParserEx",
+      "extrans",
+      "layerExDraw",
+      "AlphaMovie",
+      "windowEx",
+      "menu",
+      "scriptsEx",
+      "systemEx",
+      "csvParser",
+      "lineparser",
+      "messenger",
+      "fpslimit",
+      "fstat",
+      "memfile",
+      "binaryStream",
+      "varfile",
+      "shrinkCopy",
+      "addFont",
+      "virtualpad",
+      "iosconfig"
+    ],
+    "_comment": "Plug-in set for the iOS build. If a plug-in fails to compile for iOS, remove it here: the engine still builds and the title's support level reflects the missing plug-in."
+  },
+  "assetPack": {
+    "baseFolder": "${BUILD_SYSTEM_DIR}",
+    "sources": []
+  },
+  "infoPlist": {
+    "UIFileSharingEnabled": true,
+    "LSSupportsOpeningDocumentsInPlace": true,
+    "CADisableMinimumFrameDurationOnPhone": true,
+    "UIRequiresFullScreen": true
+  }
+}

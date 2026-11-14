@@ -1,0 +1,26 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index d146fcd..a16f752 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -176,3 +176,21 @@ include(cmake/KrkrzIOS.cmake)
+ 
+ include(${KRKRZ_BASE}/krkrz_dev/cmake/CommonExternals.cmake)
+ add_subdirectory(${KRKRZ_DIR} ${CMAKE_CURRENT_BINARY_DIR}/krkrz)
++
++# ----------------------------------------------------
++# OEP: launcher application sources
++#
++# The engine target (krkrz) is an ordinary MACOSX_BUNDLE executable.  OEP adds
++# the SwiftUI launcher and the Objective-C++ host to that same target so the app
++# keeps SDL's UIKit delegate, and gets the engine as a statically linked library.
++# Selected with -DOEP_APP_DIR=<OEP/ios> (see OEP/engine/build-ios.sh).
++# ----------------------------------------------------
++if(OEP_APP_DIR AND EXISTS "${OEP_APP_DIR}/CMakeLists.txt")
++    message(STATUS "[krkrz_ios] OEP launcher app: ${OEP_APP_DIR}")
++    # The launcher is Swift; the language has to be enabled in the top-level
++    # directory (highest directory common to the engine target and OEP sources).
++    enable_language(Swift)
++    add_subdirectory("${OEP_APP_DIR}" "${CMAKE_BINARY_DIR}/oep_app")
++elseif(OEP_APP_DIR)
++    message(FATAL_ERROR "OEP_APP_DIR is set but ${OEP_APP_DIR}/CMakeLists.txt does not exist")
++endif()

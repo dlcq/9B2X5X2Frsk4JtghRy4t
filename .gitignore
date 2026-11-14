@@ -1,0 +1,26 @@
+# Existing game data folders (user's local data, never committed or uploaded)
+NEKOPARA Vol. 1/
+魔女的夜宴/
+
+# Build outputs
+build/
+OEP/core/build/
+OEP/engine/.work/
+OEP/engine/archive/
+OEP/engine/ipa/
+OEP/engine/ipa-unsigned/
+OEP/engine/ExportOptions.plist
+OEP/engine/local.mk
+
+# Generated test data (recreate with OEP/testdata/build-testdata.py)
+OEP/testdata/mini-vn/data.xp3
+OEP/testdata/mini-vn/data/se.ogg
+
+# Editor / OS noise
+.DS_Store
+Thumbs.db
+*.swp
+
+# Python
+__pycache__/
+*.pyc

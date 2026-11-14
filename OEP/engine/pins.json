@@ -1,0 +1,19 @@
+{
+  "_comment": "Pinned upstream revisions.  build-ios.sh clones these and applies patches/*.patch.",
+  "krkrz_dev": {
+    "url": "https://github.com/wamsoft/krkrz_dev.git",
+    "commit": "21d20e9745e13c9ffe68ae2eb012548afe73aaa8",
+    "note": "umbrella repository; src/core and the plugins are submodules"
+  },
+  "krkrz_core": {
+    "url": "https://github.com/wamsoft/krkrz.git",
+    "commit": "7d91ba56bcfe241df349b01badd915a156bc47cf",
+    "note": "engine core (KiriKiri Z 1.2.0.3 lineage); patched by 0001"
+  },
+  "krkrz_ios": {
+    "url": "https://github.com/wamsoft/krkrz_ios.git",
+    "commit": "003abad6e7dc14ef597be566c8b3c4606fb9b7c1",
+    "note": "iOS CMake/Xcode shell; patched by 0002"
+  },
+  "sdl3": "release-3.4.4 (pinned by krkrz_ios KRKRZ_IOS_SDL_TAG)"
+}
