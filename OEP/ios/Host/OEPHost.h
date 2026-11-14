@@ -77,6 +77,10 @@ void OEPHostInstallDiagnostics(void);
 // UTF-8 path of the file log (Documents/OEP/oep.log).  Empty if unavailable.
 const char *OEPHostLogFilePath(void);
 
+// Which engine call is currently executing.  Written into the log when a fatal
+// signal or std::terminate fires, so a crash points at the failing call.
+void OEPHostSetPhase(const char *phase);
+
 void OEPHostFree(char *pointer);
 
 // ---------------------------------------------------------------- Swift side

@@ -10,6 +10,9 @@
 
 #include <csignal>
 #include <cstdio>
+#include <cxxabi.h>
+#include <exception>
+#include <typeinfo>
 #include <cstdlib>
 #include <cstring>
 #include <exception>
@@ -27,6 +30,7 @@ namespace {
 std::mutex g_fileMutex;
 std::string g_logFilePath;
 int g_crashFd = -1;
+volatile const char *g_phase = "startup";
 
 char *dupCString(const std::string &text) {
     char *out = static_cast<char *>(std::malloc(text.size() + 1));
@@ -101,6 +105,8 @@ void crashBreadcrumb(const char *text) {
 }
 
 void fatalSignalHandler(int signalNumber) {
+    crashBreadcrumb(" phase=");
+    crashBreadcrumb((const char *)g_phase);
     switch (signalNumber) {
         case SIGABRT: crashBreadcrumb("\n[FATAL] SIGABRT\n"); break;
         case SIGSEGV: crashBreadcrumb("\n[FATAL] SIGSEGV\n"); break;
@@ -112,6 +118,22 @@ void fatalSignalHandler(int signalNumber) {
     }
     ::signal(signalNumber, SIG_DFL);
     ::raise(signalNumber);
+}
+
+void oepTerminateHandler() {
+    // std::terminate hides the exception type; recover it for the log.
+    std::string text = "[FATAL] std::terminate";
+    if (std::type_info *type = abi::__cxa_current_exception_type()) {
+        int status = 0;
+        char *demangled = abi::__cxa_demangle(type->name(), nullptr, nullptr, &status);
+        text += ": ";
+        text += (status == 0 && demangled) ? demangled : type->name();
+        std::free(demangled);
+    }
+    text += " phase=";
+    text += g_phase ? g_phase : "?";
+    appendToLogFile(text);
+    std::abort();
 }
 
 void uncaughtExceptionHandler(NSException *exception) {
@@ -150,14 +172,27 @@ extern "C" void OEPHostInstallDiagnostics(void) {
                 g_crashFd = ::open(g_logFilePath.c_str(), O_WRONLY | O_APPEND | O_CREAT, 0644);
             }
             installSignalHandlersLocked();
+            // Capture abort reasons that only go to stderr (assertions,
+            // libc++ "terminating with uncaught exception", SDL errors).
+            if (g_crashFd >= 0) {
+                ::dup2(g_crashFd, STDERR_FILENO);
+                ::dup2(g_crashFd, STDOUT_FILENO);
+                std::setvbuf(stderr, nullptr, _IONBF, 0);
+                std::setvbuf(stdout, nullptr, _IONBF, 0);
+            }
         }
         NSSetUncaughtExceptionHandler(&uncaughtExceptionHandler);
+        std::set_terminate(&oepTerminateHandler);
         // Mirror every entry that reaches the logger into the file.
         oep::Logger::shared().addSink([](const oep::LogEntry &entry) {
             appendToLogFile(entry.toLine());
         });
         oep::Logger::shared().info("host", "diagnostics installed (log file: " + g_logFilePath + ")");
     });
+}
+
+extern "C" void OEPHostSetPhase(const char *phase) {
+    g_phase = phase ? phase : "?";
 }
 
 extern "C" const char *OEPHostLogFilePath(void) {

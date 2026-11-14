@@ -19,6 +19,13 @@
 #include <cstdlib>
 #include <cstring>
 #include <exception>
+
+#if defined(SDL_PLATFORM_IOS)
+// Not declared in SDL's public headers, but exported on iOS.  Enabling the pump
+// makes SDL_PumpEvents() run the run loop *and* re-establish the GLES context,
+// which the engine's draw device relies on every frame.
+extern "C" SDL_DECLSPEC void SDLCALL SDL_SetiOSEventPump(bool enabled);
+#endif
 #include <vector>
 #include <mutex>
 #include <string>
@@ -110,11 +117,14 @@ static OEPEngineDisplayLink *g_driver = nil;
     // end the session cleanly so the launcher and the log survive.
     @try {
         try {
+            OEPHostSetPhase("pump");
             SDL_PumpEvents();
+            OEPHostSetPhase("events");
             while (SDL_PollEvent(&event)) {
                 rc = SDL_AppEvent(state, &event);
                 if (rc != SDL_APP_CONTINUE) break;
             }
+            OEPHostSetPhase("iterate");
             if (rc == SDL_APP_CONTINUE) rc = SDL_AppIterate(state);
         } catch (const std::exception &ex) {
             OEPCoreLog("engine", std::string("exception in the engine loop: ") + ex.what());
@@ -132,6 +142,16 @@ static OEPEngineDisplayLink *g_driver = nil;
     if (rc != SDL_APP_CONTINUE) {
         [self finishWith:rc];
         return;
+    }
+
+    OEPHostSetPhase("idle");
+
+    // Very small heartbeat: shows whether frames are actually completing, and how
+    // far the engine got before a crash.
+    static long long tickCount = 0;
+    ++tickCount;
+    if (tickCount <= 5 || tickCount % 300 == 0) {
+        OEPCoreLog("engine", "frame " + std::to_string(tickCount) + " ok");
     }
 
     // Playtime accounting: report whole seconds to the launcher.
@@ -337,6 +357,7 @@ extern "C" int OEPHostEngineStart(const char *utf8ProjectPath) {
     OEPCoreLog("engine", "user:// = orgname=" + orgName + " appname=" + appName);
 
     OEPCoreLog("engine", "calling SDL_AppInit (project=" + std::string(utf8ProjectPath) + ")");
+    OEPHostSetPhase("app-init");
 
     void *state = nullptr;
     SDL_AppResult rc = SDL_APP_CONTINUE;
@@ -382,6 +403,16 @@ extern "C" int OEPHostEngineStart(const char *utf8ProjectPath) {
 
     if (!g_lifecycle) g_lifecycle = [[OEPLifecycleObserver alloc] init];
     [g_lifecycle install];
+
+#if defined(SDL_PLATFORM_IOS)
+    // SDL disables its event pump once the app's "main" returns, which happened
+    // when the launcher came up.  Without it SDL_PumpEvents() is a no-op and the
+    // GLES context is never restored after UIKit touches it -> the engine aborts
+    // on its first frames.
+    SDL_SetiOSEventPump(true);
+    OEPCoreLog("engine", "iOS event pump enabled (per-frame GLES context restore)");
+#endif
+    OEPHostSetPhase("display-link");
 
     g_driver = [[OEPEngineDisplayLink alloc] init];
     g_driver.link = [CADisplayLink displayLinkWithTarget:g_driver
